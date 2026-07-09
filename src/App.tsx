@@ -4,6 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { ShieldCheck, LogOut, Loader2 } from 'lucide-react';
+
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import CasesListView from './components/CasesListView';
@@ -15,12 +19,13 @@ import CalendarView from './components/CalendarView';
 import SettingsView from './components/SettingsView';
 import JobsView from './components/JobsView';
 
+import { auth, db, googleProvider } from './firebase';
 import { Case, Vessel, Port } from './types';
-import { 
-  INITIAL_CASES, 
-  INITIAL_VESSELS, 
-  INITIAL_PORTS, 
-  INITIAL_JOB_TYPES 
+import {
+  INITIAL_CASES,
+  INITIAL_VESSELS,
+  INITIAL_PORTS,
+  INITIAL_JOB_TYPES
 } from './sampleData';
 
 const STORAGE_KEYS = {
@@ -30,6 +35,54 @@ const STORAGE_KEYS = {
   JOB_TYPES: 'maritime_techops_job_types',
 };
 
+const APP_STATE_DOC = doc(db, 'workspaces', 'default');
+
+type AppDatabase = {
+  cases: Case[];
+  vessels: Vessel[];
+  ports: Port[];
+  jobTypes: string[];
+};
+
+const seedDatabase: AppDatabase = {
+  cases: INITIAL_CASES,
+  vessels: INITIAL_VESSELS,
+  ports: INITIAL_PORTS,
+  jobTypes: INITIAL_JOB_TYPES,
+};
+
+const readLocalBackup = (): AppDatabase | null => {
+  try {
+    const storedCases = localStorage.getItem(STORAGE_KEYS.CASES);
+    const storedVessels = localStorage.getItem(STORAGE_KEYS.VESSELS);
+    const storedPorts = localStorage.getItem(STORAGE_KEYS.PORTS);
+    const storedJobTypes = localStorage.getItem(STORAGE_KEYS.JOB_TYPES);
+
+    if (storedCases && storedVessels && storedPorts && storedJobTypes) {
+      return {
+        cases: JSON.parse(storedCases),
+        vessels: JSON.parse(storedVessels),
+        ports: JSON.parse(storedPorts),
+        jobTypes: JSON.parse(storedJobTypes),
+      };
+    }
+  } catch (err) {
+    console.error('Could not read local backup', err);
+  }
+  return null;
+};
+
+const writeLocalBackup = (data: AppDatabase) => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(data.cases));
+    localStorage.setItem(STORAGE_KEYS.VESSELS, JSON.stringify(data.vessels));
+    localStorage.setItem(STORAGE_KEYS.PORTS, JSON.stringify(data.ports));
+    localStorage.setItem(STORAGE_KEYS.JOB_TYPES, JSON.stringify(data.jobTypes));
+  } catch (err) {
+    console.error('Could not write local backup', err);
+  }
+};
+
 export default function App() {
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -37,68 +90,141 @@ export default function App() {
   const [isAddCaseOpen, setIsAddCaseOpen] = useState<boolean>(false);
   const [preselectedJobType, setPreselectedJobType] = useState<string | undefined>(undefined);
 
+  // Firebase/Auth states
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [dbLoading, setDbLoading] = useState<boolean>(true);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<boolean>(false);
+
   // Database core states
   const [cases, setCases] = useState<Case[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [ports, setPorts] = useState<Port[]>([]);
   const [jobTypes, setJobTypes] = useState<string[]>([]);
 
-  // 1. Initial State Loading on Mount
-  useEffect(() => {
+  const applyDatabaseToState = (data: AppDatabase) => {
+    setCases(data.cases || []);
+    setVessels(data.vessels || []);
+    setPorts(data.ports || []);
+    setJobTypes(data.jobTypes || []);
+    writeLocalBackup(data);
+  };
+
+  const currentDatabase = (): AppDatabase => ({
+    cases,
+    vessels,
+    ports,
+    jobTypes,
+  });
+
+  const persistDatabase = async (data: AppDatabase) => {
+    applyDatabaseToState(data);
+    setSyncing(true);
+    setSyncError(null);
+
     try {
-      const storedCases = localStorage.getItem(STORAGE_KEYS.CASES);
-      const storedVessels = localStorage.getItem(STORAGE_KEYS.VESSELS);
-      const storedPorts = localStorage.getItem(STORAGE_KEYS.PORTS);
-      const storedJobTypes = localStorage.getItem(STORAGE_KEYS.JOB_TYPES);
-
-      if (storedCases && storedVessels && storedPorts && storedJobTypes) {
-        setCases(JSON.parse(storedCases));
-        setVessels(JSON.parse(storedVessels));
-        setPorts(JSON.parse(storedPorts));
-        setJobTypes(JSON.parse(storedJobTypes));
-      } else {
-        // First-run seed
-        setCases(INITIAL_CASES);
-        setVessels(INITIAL_VESSELS);
-        setPorts(INITIAL_PORTS);
-        setJobTypes(INITIAL_JOB_TYPES);
-
-        localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(INITIAL_CASES));
-        localStorage.setItem(STORAGE_KEYS.VESSELS, JSON.stringify(INITIAL_VESSELS));
-        localStorage.setItem(STORAGE_KEYS.PORTS, JSON.stringify(INITIAL_PORTS));
-        localStorage.setItem(STORAGE_KEYS.JOB_TYPES, JSON.stringify(INITIAL_JOB_TYPES));
-      }
+      await setDoc(APP_STATE_DOC, {
+        ...data,
+        lastSavedAt: serverTimestamp(),
+        lastSavedBy: user?.email || 'unknown',
+      }, { merge: true });
     } catch (err) {
-      console.error('Failed to load database from LocalStorage, fallback to seeds', err);
-      setCases(INITIAL_CASES);
-      setVessels(INITIAL_VESSELS);
-      setPorts(INITIAL_PORTS);
-      setJobTypes(INITIAL_JOB_TYPES);
+      console.error('Firebase save failed', err);
+      setSyncError('Online save failed. Check Firebase Authentication / Firestore rules. A local backup was still saved in this browser.');
+    } finally {
+      setSyncing(false);
     }
+  };
+
+  // 1. Authentication listener
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setAuthLoading(false);
+    });
+
+    return unsub;
   }, []);
 
-  // 2. Helpers to Sync to LocalStorage on Change
+  // 2. Firestore live sync. All logged-in devices read/write the same workspace document.
+  useEffect(() => {
+    if (!user) {
+      setDbLoading(false);
+      return;
+    }
+
+    setDbLoading(true);
+    setSyncError(null);
+
+    const unsub = onSnapshot(
+      APP_STATE_DOC,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const remote = snapshot.data() as Partial<AppDatabase>;
+          const nextData: AppDatabase = {
+            cases: remote.cases || [],
+            vessels: remote.vessels || [],
+            ports: remote.ports || [],
+            jobTypes: remote.jobTypes || [],
+          };
+          applyDatabaseToState(nextData);
+        } else {
+          // First online run: use local backup if available, otherwise seed data.
+          const initialData = readLocalBackup() || seedDatabase;
+          applyDatabaseToState(initialData);
+          await setDoc(APP_STATE_DOC, {
+            ...initialData,
+            createdAt: serverTimestamp(),
+            lastSavedAt: serverTimestamp(),
+            lastSavedBy: user.email || 'unknown',
+          });
+        }
+        setDbLoading(false);
+      },
+      (err) => {
+        console.error('Firebase load failed', err);
+        setSyncError('Could not load online database. Check Firestore rules and that Firestore is enabled.');
+        applyDatabaseToState(readLocalBackup() || seedDatabase);
+        setDbLoading(false);
+      }
+    );
+
+    return unsub;
+  }, [user]);
+
+  const handleLogin = async () => {
+    setSyncError(null);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      console.error('Login failed', err);
+      setSyncError('Login failed. Make sure Google sign-in is enabled in Firebase Authentication.');
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  // 3. Helpers to Sync to Firestore on Change
   const saveCases = (newCases: Case[]) => {
-    setCases(newCases);
-    localStorage.setItem(STORAGE_KEYS.CASES, JSON.stringify(newCases));
+    persistDatabase({ ...currentDatabase(), cases: newCases });
   };
 
   const saveVessels = (newVessels: Vessel[]) => {
-    setVessels(newVessels);
-    localStorage.setItem(STORAGE_KEYS.VESSELS, JSON.stringify(newVessels));
+    persistDatabase({ ...currentDatabase(), vessels: newVessels });
   };
 
   const savePorts = (newPorts: Port[]) => {
-    setPorts(newPorts);
-    localStorage.setItem(STORAGE_KEYS.PORTS, JSON.stringify(newPorts));
+    persistDatabase({ ...currentDatabase(), ports: newPorts });
   };
 
   const saveJobTypes = (newJobTypes: string[]) => {
-    setJobTypes(newJobTypes);
-    localStorage.setItem(STORAGE_KEYS.JOB_TYPES, JSON.stringify(newJobTypes));
+    persistDatabase({ ...currentDatabase(), jobTypes: newJobTypes });
   };
 
-  // 3. Operational State Handlers (CRUD Core)
+  // 4. Operational State Handlers (CRUD Core)
 
   // Navigate to specific Case Detail View
   const handleSelectCase = (caseId: string) => {
@@ -110,10 +236,9 @@ export default function App() {
   const handleAddCase = (
     newCaseData: Omit<Case, 'id' | 'createdDate' | 'lastUpdatedDate' | 'emails' | 'comments'>
   ) => {
-    // Generate simple custom ID based on year + count + randomized suffix
     const currentYear = new Date().getFullYear();
     const prefix = `CASE-${currentYear}-`;
-    const randSuffix = Math.floor(100 + Math.random() * 900); // 3 digits
+    const randSuffix = Math.floor(100 + Math.random() * 900);
     const newId = `${prefix}${randSuffix}`;
 
     const newCase: Case = {
@@ -127,8 +252,6 @@ export default function App() {
 
     const updatedCases = [newCase, ...cases];
     saveCases(updatedCases);
-    
-    // Automatically focus the newly created case
     handleSelectCase(newId);
   };
 
@@ -186,8 +309,6 @@ export default function App() {
   // Update existing Job Type category name
   const handleUpdateJobType = (oldType: string, newType: string) => {
     const updatedTypes = jobTypes.map(t => t === oldType ? newType : t);
-    saveJobTypes(updatedTypes);
-
     const updatedCases = cases.map(c => {
       if (c.jobType === oldType) {
         return {
@@ -198,32 +319,26 @@ export default function App() {
       }
       return c;
     });
-    saveCases(updatedCases);
+
+    persistDatabase({ ...currentDatabase(), jobTypes: updatedTypes, cases: updatedCases });
   };
 
-  // Reset local database back to default seed data
+  // Reset database back to default seed data
   const handleResetDatabase = () => {
-    saveCases(INITIAL_CASES);
-    saveVessels(INITIAL_VESSELS);
-    savePorts(INITIAL_PORTS);
-    saveJobTypes(INITIAL_JOB_TYPES);
+    persistDatabase(seedDatabase);
     setSelectedCaseId(null);
     setActiveTab('dashboard');
   };
 
   // Restore complete state from a JSON Backup File
   const handleImportFullDatabase = (data: { cases: Case[]; vessels: Vessel[]; ports: Port[]; jobTypes: string[] }) => {
-    saveCases(data.cases);
-    saveVessels(data.vessels);
-    savePorts(data.ports);
-    saveJobTypes(data.jobTypes);
+    persistDatabase(data);
     setSelectedCaseId(null);
     setActiveTab('dashboard');
   };
 
-  // Merge uploaded Cases array (list-view local import)
+  // Merge uploaded Cases array
   const handleImportCasesOnly = (importedCases: Case[]) => {
-    // Avoid double entries by checking if case ID already exists; replace or add
     let updatedCases = [...cases];
     importedCases.forEach((ic) => {
       const idx = updatedCases.findIndex(c => c.id === ic.id);
@@ -236,9 +351,8 @@ export default function App() {
     saveCases(updatedCases);
   };
 
-  // 4. View Switcher Logic
+  // 5. View Switcher Logic
   const renderActiveView = () => {
-    // If cases tab is active, check if we are in list view or single case detail view
     if (activeTab === 'cases') {
       if (selectedCaseId) {
         const activeCase = cases.find(c => c.id === selectedCaseId);
@@ -254,7 +368,7 @@ export default function App() {
             />
           );
         } else {
-          setSelectedCaseId(null); // Reset invalid selection
+          setSelectedCaseId(null);
         }
       }
 
@@ -350,29 +464,82 @@ export default function App() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-100 text-slate-700">
+        <Loader2 className="h-6 w-6 animate-spin mr-3" /> Loading secure workspace...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-100 p-6">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl border border-slate-200 text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <ShieldCheck className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Inspections & Surveys</h1>
+          <p className="text-slate-600 mb-6">
+            Sign in to save jobs, vessels, ports and comments online in Firebase and access them from any device.
+          </p>
+          <button
+            onClick={handleLogin}
+            className="w-full rounded-xl bg-blue-600 px-4 py-3 text-white font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Sign in with Google
+          </button>
+          {syncError && (
+            <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 border border-red-100">{syncError}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (dbLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-100 text-slate-700">
+        <Loader2 className="h-6 w-6 animate-spin mr-3" /> Loading online database...
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-100" id="app-viewport">
-      
-      {/* Sidebar navigation */}
-      <Sidebar 
-        activeTab={activeTab} 
+      <Sidebar
+        activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          // If moving away from cases, let's close individual case focus
           if (tab !== 'cases') {
             setSelectedCaseId(null);
           }
-        }} 
+        }}
         cases={cases}
         onQuickAdd={() => setIsAddCaseOpen(true)}
       />
 
-      {/* Main screen renderer */}
-      <main className="flex-1 flex flex-col overflow-hidden" id="viewport-main-content">
+      <main className="flex-1 flex flex-col overflow-hidden relative" id="viewport-main-content">
+        <div className="absolute right-4 top-3 z-50 flex items-center gap-2">
+          {syncError && (
+            <div className="max-w-xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 shadow-sm">
+              {syncError}
+            </div>
+          )}
+          <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs text-slate-600 shadow-sm">
+            {syncing ? 'Saving online...' : 'Online sync ready'} · {user.email}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="rounded-full border border-slate-200 bg-white/90 p-2 text-slate-500 shadow-sm hover:text-red-600"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
         {renderActiveView()}
       </main>
 
-      {/* Quick Add Case Entry Modal */}
       <AddCaseModal
         isOpen={isAddCaseOpen}
         onClose={() => {
@@ -385,7 +552,6 @@ export default function App() {
         jobTypes={jobTypes}
         preselectedJobType={preselectedJobType}
       />
-
     </div>
   );
 }
