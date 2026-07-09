@@ -1,0 +1,6 @@
+{
+  "name": "Vessel Survey & Inspection Manager",
+  "description": "A professional tool for shipping company technical departments to manage vessel surveys, inspections, service jobs, and correspondence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
