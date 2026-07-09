@@ -11,10 +11,11 @@ interface VesselsViewProps {
   vessels: Vessel[];
   cases: Case[];
   onAddVessel: (name: string, imo?: string, fleet?: string) => void;
+  onDeleteVessel: (vesselId: string) => void;
   onSelectCase: (caseId: string) => void;
 }
 
-export default function VesselsView({ vessels, cases, onAddVessel, onSelectCase }: VesselsViewProps) {
+export default function VesselsView({ vessels, cases, onAddVessel, onDeleteVessel, onSelectCase }: VesselsViewProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState('');
   const [imo, setImo] = useState('');
@@ -31,13 +32,23 @@ export default function VesselsView({ vessels, cases, onAddVessel, onSelectCase 
       return;
     }
 
-    onAddVessel(name.trim(), imo.trim() || undefined, fleet.trim() || undefined);
+    onAddVessel(name.trim(), imo.trim(), fleet.trim());
     
     // Reset
     setName('');
     setImo('');
     setFleet('');
     setShowAddForm(false);
+  };
+
+  const handleDeleteVessel = (vesselId: string, vesselName: string, linkedCasesCount: number) => {
+    const message = linkedCasesCount > 0
+      ? `Delete ${vesselName}? ${linkedCasesCount} linked case(s) will remain, but will become unassigned from this vessel.`
+      : `Delete ${vesselName}?`;
+
+    if (window.confirm(message)) {
+      onDeleteVessel(vesselId);
+    }
   };
 
   return (
@@ -146,11 +157,24 @@ export default function VesselsView({ vessels, cases, onAddVessel, onSelectCase 
                       <p className="text-xs font-mono text-slate-400">IMO: {v.imo || 'Not Registered'}</p>
                     </div>
                   </div>
-                  {v.fleet && (
-                    <span className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded text-[11px] font-mono border border-slate-100">
-                      {v.fleet}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {v.fleet && (
+                      <span className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded text-[11px] font-mono border border-slate-100">
+                        {v.fleet}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteVessel(v.id, v.name, vesselCases.length);
+                      }}
+                      className="rounded-md border border-red-100 bg-red-50 p-1.5 text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors"
+                      title="Delete vessel"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Counter Statistics bar */}

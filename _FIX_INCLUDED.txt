@@ -1,0 +1,5 @@
+Fix included:
+- Firestore save now removes undefined values before saving, so new vessels/ports with optional empty fields save correctly online.
+- Vessel deletion added.
+- Port deletion added.
+- If a vessel/port has linked cases, the cases are kept but become unassigned from that deleted vessel/port.
