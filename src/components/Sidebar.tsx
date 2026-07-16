@@ -57,6 +57,7 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
         <div className="leading-tight">
           <div className="text-white font-bold tracking-tight text-xl">SURVINSPEC</div>
           <div className="text-[10px] text-sky-300 font-bold tracking-[0.18em] uppercase">Inspections & Surveys</div>
+          <div className="text-[9px] text-slate-500 font-mono mt-0.5">v2.1 online sync</div>
         </div>
       </div>
 

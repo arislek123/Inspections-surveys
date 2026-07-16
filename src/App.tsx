@@ -29,10 +29,10 @@ import {
 } from './sampleData';
 
 const STORAGE_KEYS = {
-  CASES: 'maritime_techops_cases',
-  VESSELS: 'maritime_techops_vessels',
-  PORTS: 'maritime_techops_ports',
-  JOB_TYPES: 'maritime_techops_job_types',
+  CASES: 'survinspec_cases',
+  VESSELS: 'survinspec_vessels',
+  PORTS: 'survinspec_ports',
+  JOB_TYPES: 'survinspec_job_types',
 };
 
 const APP_STATE_DOC = doc(db, 'workspaces', 'default');
@@ -110,12 +110,32 @@ export default function App() {
   const [ports, setPorts] = useState<Port[]>([]);
   const [jobTypes, setJobTypes] = useState<string[]>([]);
 
+  const normalizeCaseStatus = (status: string): Case['status'] => {
+    // Legacy clean-up: old builds used "In Worklist". New workflow starts directly from In Progress.
+    if (status === 'In Worklist') return 'In Progress';
+    if (status === 'Awaiting Reply' || status === 'Finished' || status === 'Postponed' || status === 'Urgent' || status === 'Postponed but Reopened') return status;
+    return 'In Progress';
+  };
+
+  const normalizeDatabase = (data: AppDatabase): AppDatabase => ({
+    cases: (data.cases || []).map((c) => ({
+      ...c,
+      status: normalizeCaseStatus(String(c.status)),
+      comments: c.comments || [],
+      emails: c.emails || [],
+    })),
+    vessels: data.vessels || [],
+    ports: data.ports || [],
+    jobTypes: data.jobTypes || [],
+  });
+
   const applyDatabaseToState = (data: AppDatabase) => {
-    setCases(data.cases || []);
-    setVessels(data.vessels || []);
-    setPorts(data.ports || []);
-    setJobTypes(data.jobTypes || []);
-    writeLocalBackup(data);
+    const normalized = normalizeDatabase(data);
+    setCases(normalized.cases);
+    setVessels(normalized.vessels);
+    setPorts(normalized.ports);
+    setJobTypes(normalized.jobTypes);
+    writeLocalBackup(normalized);
   };
 
   const currentDatabase = (): AppDatabase => ({

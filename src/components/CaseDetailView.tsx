@@ -381,10 +381,7 @@ export default function CaseDetailView({
   // Status Styling Colors
   let statusBadgeStyle = 'bg-slate-100 text-slate-700 border-slate-300';
   let statusCardBorder = 'border-slate-300 bg-slate-50';
-  if (caseItem.status === 'In Worklist') {
-    statusBadgeStyle = 'bg-slate-100 text-slate-700 border-slate-200';
-    statusCardBorder = 'border-slate-300 bg-slate-50';
-  } else if (caseItem.status === 'In Progress') {
+  if (caseItem.status === 'In Progress') {
     statusBadgeStyle = 'bg-sky-100 text-sky-800 border-sky-300';
     statusCardBorder = 'border-sky-200 bg-sky-50/20';
   } else if (caseItem.status === 'Awaiting Reply') {
@@ -413,7 +410,7 @@ export default function CaseDetailView({
             id="btn-back-to-cases"
             onClick={onBack} 
             className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
-            title="Back to Cases Worklist"
+            title="Back to Cases"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>

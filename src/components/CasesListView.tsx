@@ -273,7 +273,7 @@ export default function CasesListView({
       return {
         'Job Category Name': type,
         'Total Logged Cases': associatedCases.length,
-        'Active Worklist Cases': activeCount,
+        'Active Cases': activeCount,
         'Urgent / Critical Cases': urgentCount,
         'Completed/Closed Cases': completedCount
       };
@@ -314,7 +314,7 @@ export default function CasesListView({
     const maxW_jobs = [
       { wch: 30 }, // Job Category Name
       { wch: 20 }, // Total Logged Cases
-      { wch: 22 }, // Active Worklist Cases
+      { wch: 22 }, // Active Cases
       { wch: 22 }, // Urgent / Critical Cases
       { wch: 22 }  // Completed/Closed Cases
     ];
@@ -332,7 +332,7 @@ export default function CasesListView({
       {/* Top action header bar */}
       <div className="bg-white border-b border-slate-100 px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0" id="cases-list-header">
         <div>
-          <h2 className="text-lg font-sans font-bold text-slate-900 tracking-tight">Vessel Cases & Inspections Worklist</h2>
+          <h2 className="text-lg font-sans font-bold text-slate-900 tracking-tight">Survey / Service Case Register</h2>
           <p className="text-sm text-slate-500 mt-0.5">Filter, search, or export current technical issues and Class survey tasks.</p>
         </div>
         
@@ -708,8 +708,7 @@ export default function CasesListView({
                   
                   // Status Colors - soft, corporate, maritime
                   let statusStyle = 'bg-slate-100 text-slate-600 border-slate-200';
-                  if (c.status === 'In Worklist') statusStyle = 'bg-slate-100 text-slate-700 border-slate-300/80';
-                  else if (c.status === 'In Progress') statusStyle = 'bg-sky-50 text-sky-700 border-sky-100';
+                  if (c.status === 'In Progress') statusStyle = 'bg-sky-50 text-sky-700 border-sky-100';
                   else if (c.status === 'Awaiting Reply') statusStyle = 'bg-amber-50 text-amber-700 border-amber-200/50';
                   else if (c.status === 'Finished') statusStyle = 'bg-emerald-50 text-emerald-700 border-emerald-100';
                   else if (c.status === 'Postponed') statusStyle = 'bg-slate-100 text-slate-500 border-slate-200';

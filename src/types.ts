@@ -26,7 +26,6 @@ export interface Email {
 }
 
 export type CaseStatus =
-  | 'In Worklist'
   | 'In Progress'
   | 'Awaiting Reply'
   | 'Finished'
