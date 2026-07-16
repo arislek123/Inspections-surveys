@@ -13,6 +13,7 @@ interface SettingsViewProps {
   onAddJobType: (type: string) => void;
   onDeleteJobType: (type: string) => void;
   onImportFullDatabase: (data: { cases: Case[]; vessels: Vessel[]; ports: Port[]; jobTypes: string[] }) => void;
+  onClearDatabase: () => void;
   cases: Case[];
   vessels: Vessel[];
   ports: Port[];
@@ -23,6 +24,7 @@ export default function SettingsView({
   onAddJobType, 
   onDeleteJobType, 
   onImportFullDatabase,
+  onClearDatabase,
   cases,
   vessels,
   ports
@@ -33,6 +35,7 @@ export default function SettingsView({
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState<any | null>(null);
+  const [confirmClearDatabase, setConfirmClearDatabase] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const triggerError = (msg: string) => {
@@ -350,7 +353,7 @@ export default function SettingsView({
           <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 space-y-4">
             <h3 className="text-sm font-sans font-bold text-slate-800">Database Portability</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Your application data is saved directly in your browser's LocalStorage. Export backups regularly to safeguard against cache clearance or system resets.
+              Your application data is saved online in Firebase Firestore and backed up locally in this browser. Export backups regularly before major changes.
             </p>
 
             <div className="space-y-3 pt-2">
@@ -407,6 +410,47 @@ export default function SettingsView({
               <p>• Vessels Listed: {vessels.length}</p>
               <p>• Port Profiles: {ports.length}</p>
             </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-red-100 shadow-sm p-6 space-y-4">
+            <h3 className="text-sm font-sans font-bold text-slate-800">Clean Start / Remove Demo Data</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Use this only if you want to remove all current cases, vessels and ports from the online workspace and start with an empty database. Job categories will remain.
+            </p>
+            {confirmClearDatabase ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 space-y-3">
+                <p className="font-bold">This will clear the online Firestore workspace. Continue?</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClearDatabase();
+                      setConfirmClearDatabase(false);
+                      triggerSuccess('Workspace cleared. You can now enter real vessels, ports and cases.');
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg"
+                  >
+                    Yes, clear workspace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearDatabase(false)}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmClearDatabase(true)}
+                className="w-full bg-white hover:bg-red-50 border border-red-200 text-red-700 font-semibold py-2 px-4 rounded-lg text-xs flex items-center justify-center space-x-2 cursor-pointer transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear Cases, Vessels & Ports</span>
+              </button>
+            )}
           </div>
 
         </div>

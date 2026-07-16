@@ -46,7 +46,7 @@ export default function AddCaseModal({
   }, [isOpen, preselectedJobType, jobTypes]);
   
   const [subject, setSubject] = useState('');
-  const [responsiblePerson, setResponsiblePerson] = useState('John Mercer (Technical Supt)');
+  const [responsiblePerson, setResponsiblePerson] = useState('Technical Department');
   const [status, setStatus] = useState<CaseStatus>('In Worklist');
   const [priority, setPriority] = useState<CasePriority>('Medium');
   const [details, setDetails] = useState('');
@@ -135,7 +135,7 @@ export default function AddCaseModal({
     setCustomJobType('');
     setIsCustomJob(false);
     setSubject('');
-    setResponsiblePerson('John Mercer (Technical Supt)');
+    setResponsiblePerson('Technical Department');
     setStatus('In Worklist');
     setPriority('Medium');
     setDetails('');
@@ -155,10 +155,11 @@ export default function AddCaseModal({
   };
 
   const commonSupts = [
-    'John Mercer (Technical Supt)',
-    'Sarah Jenkins (Marine Manager)',
-    'Marcus Vance (Technical Director)',
-    'Captain on Board',
+    'Technical Department',
+    'Assistant Superintendent',
+    'Technical Superintendent',
+    'Marine Superintendent',
+    'Captain / Chief Engineer',
   ];
 
   return (

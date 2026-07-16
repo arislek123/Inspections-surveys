@@ -354,9 +354,14 @@ export default function App() {
     persistDatabase({ ...currentDatabase(), jobTypes: updatedTypes, cases: updatedCases });
   };
 
-  // Reset database back to default seed data
-  const handleResetDatabase = () => {
-    persistDatabase(seedDatabase);
+  // Reset database back to a clean empty workspace.
+  const handleClearDatabase = () => {
+    persistDatabase({
+      cases: [],
+      vessels: [],
+      ports: [],
+      jobTypes: INITIAL_JOB_TYPES,
+    });
     setSelectedCaseId(null);
     setActiveTab('dashboard');
   };
@@ -483,6 +488,7 @@ export default function App() {
             onAddJobType={handleAddJobType}
             onDeleteJobType={handleDeleteJobType}
             onImportFullDatabase={handleImportFullDatabase}
+            onClearDatabase={handleClearDatabase}
             cases={cases}
             vessels={vessels}
             ports={ports}
@@ -550,6 +556,7 @@ export default function App() {
         }}
         cases={cases}
         onQuickAdd={() => setIsAddCaseOpen(true)}
+        userEmail={user.email || undefined}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden relative" id="viewport-main-content">
