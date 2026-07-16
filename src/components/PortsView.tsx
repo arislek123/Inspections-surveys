@@ -4,18 +4,17 @@
  */
 
 import React, { useState } from 'react';
-import { MapPin, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Plus, Anchor, Compass, CheckCircle2 } from 'lucide-react';
 import { Port, Case } from '../types';
 
 interface PortsViewProps {
   ports: Port[];
   cases: Case[];
   onAddPort: (name: string, country: string, eta?: string, etb?: string, ets?: string) => void;
-  onDeletePort: (portId: string) => void;
   onSelectCase: (caseId: string) => void;
 }
 
-export default function PortsView({ ports, cases, onAddPort, onDeletePort, onSelectCase }: PortsViewProps) {
+export default function PortsView({ ports, cases, onAddPort, onSelectCase }: PortsViewProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
@@ -41,9 +40,9 @@ export default function PortsView({ ports, cases, onAddPort, onDeletePort, onSel
     onAddPort(
       name.trim(), 
       country.trim(), 
-      eta.trim(), 
-      etb.trim(), 
-      ets.trim()
+      eta || undefined, 
+      etb || undefined, 
+      ets || undefined
     );
     
     // Reset
@@ -53,16 +52,6 @@ export default function PortsView({ ports, cases, onAddPort, onDeletePort, onSel
     setEtb('');
     setEts('');
     setShowAddForm(false);
-  };
-
-  const handleDeletePort = (portId: string, portName: string, linkedCasesCount: number) => {
-    const message = linkedCasesCount > 0
-      ? `Delete ${portName}? ${linkedCasesCount} linked case(s) will remain, but will become unassigned from this port.`
-      : `Delete ${portName}?`;
-
-    if (window.confirm(message)) {
-      onDeletePort(portId);
-    }
   };
 
   return (
@@ -160,22 +149,9 @@ export default function PortsView({ ports, cases, onAddPort, onDeletePort, onSel
                       <p className="text-xs font-mono text-slate-400">{p.country}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded text-[11px] font-mono font-bold border border-sky-100">
-                      {openCases.length} active
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePort(p.id, p.name, portCases.length);
-                      }}
-                      className="rounded-md border border-red-100 bg-red-50 p-1.5 text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors"
-                      title="Delete port"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                  <span className="bg-sky-50 text-sky-700 px-2 py-0.5 rounded text-[11px] font-mono font-bold border border-sky-100">
+                    {openCases.length} active
+                  </span>
                 </div>
 
                 {/* Counter Statistics bar */}
