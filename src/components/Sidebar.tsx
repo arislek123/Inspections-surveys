@@ -43,21 +43,13 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
   return (
     <aside id="sidebar-panel" className="w-64 bg-[#0f172a] h-full flex flex-col text-slate-400 p-6 shadow-xl shrink-0">
       {/* Header logo / branding */}
-      <div className="flex items-center gap-3 mb-8 px-1">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-slate-900 flex items-center justify-center shadow-lg shadow-sky-950/40 ring-1 ring-white/10">
-          <svg className="w-7 h-7 text-white" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Survinspec logo">
-            <path d="M9 31.5H39L35.8 38H12.2L9 31.5Z" fill="currentColor" opacity="0.96"/>
-            <path d="M15.5 25.5H32.5L35.5 31.5H12.5L15.5 25.5Z" fill="currentColor" opacity="0.74"/>
-            <path d="M23.8 10V25.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"/>
-            <path d="M24 12.5L34 18.5L24 23V12.5Z" fill="currentColor" opacity="0.9"/>
-            <path d="M8 39C11.2 41 14.4 41 17.6 39C20.8 37 24 37 27.2 39C30.4 41 33.6 41 37 39" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" opacity="0.75"/>
-            <path d="M10 16C12.4 10.8 17.6 7.5 23.7 7.5C30.4 7.5 36.1 11.7 38.2 17.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.32"/>
-          </svg>
-        </div>
-        <div className="leading-tight">
-          <div className="text-white font-bold tracking-tight text-xl">SURVINSPEC</div>
-          <div className="text-[10px] text-sky-300 font-bold tracking-[0.18em] uppercase">Inspections & Surveys</div>
-          <div className="text-[9px] text-slate-500 font-mono mt-0.5">v2.1 online sync</div>
+      <div className="mb-8">
+        <div className="rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-white/10">
+          <img
+            src="./survinspec-logo-3d.png"
+            alt="SURVINSPEC logo"
+            className="w-full h-auto block"
+          />
         </div>
       </div>
 
