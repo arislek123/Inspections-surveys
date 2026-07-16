@@ -1,5 +1,0 @@
-* text=auto eol=lf
-*.tsx text eol=lf
-*.ts text eol=lf
-*.json text eol=lf
-*.yml text eol=lf

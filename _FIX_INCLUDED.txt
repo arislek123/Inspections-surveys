@@ -1,1 +1,13 @@
-SURVINSPEC v2.1 serious clean package. See _SERIOUS_VERSION_READ_ME.txt.
+FIX INCLUDED - 2026-07-16
+
+Requested app improvements applied:
+- Sidebar button renamed to: New Survey / Service Case.
+- Removed In Worklist from new case and quick status change options. Existing legacy cases with In Worklist still display safely if already saved.
+- Vessel page rebuilt with compact table view by default and optional card view.
+- Vessel table columns: Vessel, Open Cases, Urgent, Next Port, Next Attendance, Latest Update, Actions.
+- Added vessel edit, archive/restore, delete with confirmation and linked-case unassignment warning.
+- Added port edit, archive/restore, delete with confirmation and linked-case unassignment warning.
+- Internal notes default to Technical Department and support edit/delete.
+- Case filters expanded: vessel, port, job type, supplier/agent, status, urgency/priority, date range, authority/class/flag, responsible person.
+- Added quick search chips: BWTS, LSA, FFE, CEMS, VDR, Singapore, DNV, ABS.
+- Footer corrected from Browser LocalStorage to Firebase online sync.

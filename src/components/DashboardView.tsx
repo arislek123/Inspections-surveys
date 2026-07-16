@@ -45,10 +45,6 @@ export default function DashboardView({
   const reopenedCases = cases.filter(c => c.status === 'Postponed but Reopened').length;
   const inProgressCases = cases.filter(c => c.status === 'In Progress').length;
   const awaitingReplyCases = cases.filter(c => c.status === 'Awaiting Reply').length;
-  const localTime = new Date().toLocaleString(undefined, {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit'
-  });
 
   // Cases per Vessel
   const vesselStats = vessels.map(v => {
@@ -100,12 +96,12 @@ export default function DashboardView({
       {/* Welcome Banner / Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 space-y-3 md:space-y-0 border-b border-slate-100 pb-5" id="dashboard-header-section">
         <div>
-          <h2 className="text-2xl font-sans font-bold text-slate-900 tracking-tight">Inspections & Surveys Dashboard</h2>
-          <p className="text-sm text-slate-500 mt-1">Real-time overview of vessel surveys, service attendances, technical follow-ups and pending actions.</p>
+          <h2 className="text-2xl font-sans font-bold text-slate-900 tracking-tight">Technical Operations Dashboard</h2>
+          <p className="text-sm text-slate-500 mt-1">Real-time status of ship inspections, surveys, and technical repair cases.</p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-sans font-medium text-slate-600">Local Time</p>
-          <p className="text-sm font-mono font-bold text-slate-800">{localTime}</p>
+          <p className="text-sm font-sans font-medium text-slate-600">Local Time (UTC-7)</p>
+          <p className="text-sm font-mono font-bold text-slate-800">2026-07-05 05:29</p>
         </div>
       </div>
 
@@ -309,7 +305,8 @@ export default function DashboardView({
             {recentCases.map((c) => {
               // Status Styling aligned to Design HTML specifications
               let statusStyle = 'bg-slate-100 text-slate-600 border-slate-200';
-              if (c.status === 'In Progress') statusStyle = 'bg-blue-50 text-blue-700 border-blue-100';
+              if (c.status === 'In Worklist') statusStyle = 'bg-slate-100 text-slate-600 border-slate-200';
+              else if (c.status === 'In Progress') statusStyle = 'bg-blue-50 text-blue-700 border-blue-100';
               else if (c.status === 'Awaiting Reply') statusStyle = 'bg-amber-50 text-amber-700 border-amber-100';
               else if (c.status === 'Finished') statusStyle = 'bg-emerald-50 text-emerald-700 border-emerald-100';
               else if (c.status === 'Postponed but Reopened') statusStyle = 'bg-indigo-50 text-indigo-700 border-indigo-100';

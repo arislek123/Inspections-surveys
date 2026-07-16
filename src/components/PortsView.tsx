@@ -179,10 +179,11 @@ export default function PortsView({
 
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden" id="ports-table-card">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[820px]">
+          <table className="w-full text-left min-w-[950px]">
             <thead className="bg-slate-50 border-b border-slate-100 text-xs font-sans font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="px-5 py-3">Port</th>
+                <th className="px-5 py-3">ETA / ETB / ETS</th>
                 <th className="px-5 py-3">Open Cases</th>
                 <th className="px-5 py-3">Urgent</th>
                 <th className="px-5 py-3">Latest Case</th>
@@ -203,6 +204,11 @@ export default function PortsView({
                           {p.archived && <span className="text-[10px] bg-slate-200 text-slate-600 rounded px-1.5 py-0.5 font-bold uppercase">Archived</span>}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-5 py-3 font-mono text-xs text-slate-600">
+                      <div>ETA: {p.eta || '—'}</div>
+                      <div>ETB: {p.etb || '—'}</div>
+                      <div>ETS: {p.ets || '—'}</div>
                     </td>
                     <td className="px-5 py-3 font-bold text-sky-700">{metrics.openCases.length}</td>
                     <td className="px-5 py-3 font-bold text-red-600">{metrics.urgentCases.length}</td>
@@ -226,7 +232,7 @@ export default function PortsView({
                 );
               })}
               {visiblePorts.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-12 text-center text-slate-400">No ports registered yet.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-400">No ports registered yet.</td></tr>
               )}
             </tbody>
           </table>

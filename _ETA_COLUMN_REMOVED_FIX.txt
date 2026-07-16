@@ -1,4 +1,0 @@
-Fix included:
-- Removed the ETA / ETB / ETS column from the Ports table/list view.
-- Kept ETA/ETB/ETS fields only inside the add/edit port form, so they can still be stored if needed.
-- Adjusted table width and empty-state column span.

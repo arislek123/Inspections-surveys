@@ -80,7 +80,7 @@ export default function JobsView({
       return {
         'Job Category Name': type,
         'Total Logged Cases': associatedCases.length,
-        'Active Cases': activeCount,
+        'Active Worklist Cases': activeCount,
         'Urgent / Critical Cases': urgentCount,
         'Completed/Closed Cases': completedCount
       };
@@ -121,7 +121,7 @@ export default function JobsView({
     const maxW_jobs = [
       { wch: 30 }, // Job Category Name
       { wch: 20 }, // Total Logged Cases
-      { wch: 22 }, // Active Cases
+      { wch: 22 }, // Active Worklist Cases
       { wch: 22 }, // Urgent / Critical Cases
       { wch: 22 }  // Completed/Closed Cases
     ];

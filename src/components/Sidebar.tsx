@@ -43,14 +43,12 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
   return (
     <aside id="sidebar-panel" className="w-64 bg-[#0f172a] h-full flex flex-col text-slate-400 p-6 shadow-xl shrink-0">
       {/* Header logo / branding */}
-      <div className="mb-8">
-        <div className="rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-white/10">
-          <img
-            src="./survinspec-logo-3d.png"
-            alt="SURVINSPEC logo"
-            className="w-full h-auto block"
-          />
-        </div>
+      <div className="mb-8 px-1 flex justify-center">
+        <img
+          src="./survinspec-logo-transparent.png"
+          alt="SURVINSPEC logo"
+          className="w-[190px] h-auto block drop-shadow-[0_10px_20px_rgba(15,23,42,0.35)]"
+        />
       </div>
 
       {/* Quick Action Button */}
