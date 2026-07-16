@@ -49,12 +49,25 @@ export default function CaseDetailView({
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'emails' | 'comments'>('all');
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
-  // New Comment State
+  const toDateTimeLocal = (iso?: string) => {
+    if (!iso) return new Date().toISOString().slice(0, 16);
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 16);
+    const offsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offsetMs).toISOString().slice(0, 16);
+  };
+
+  // New / edit comment state
   const [commentText, setCommentText] = useState('');
-  const [commentAuthor, setCommentAuthor] = useState('John Mercer (Technical Supt)');
+  const [commentAuthor, setCommentAuthor] = useState('Technical Department');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentAuthor, setEditingCommentAuthor] = useState('');
+  const [editingCommentContent, setEditingCommentContent] = useState('');
 
   // New Email Form State
   const [showMailForm, setShowMailForm] = useState(false);
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [mailDate, setMailDate] = useState(() => toDateTimeLocal());
   const [mailRef, setMailRef] = useState(() => {
     // Attempt to guess next ref
     const count = caseItem.emails.length;
@@ -63,7 +76,7 @@ export default function CaseDetailView({
     return `${groupNum}${isReply ? 'b' : 'a'}`;
   });
   const [mailDirection, setMailDirection] = useState<'Incoming' | 'Outgoing'>('Outgoing');
-  const [mailSender, setMailSender] = useState('john.mercer@technical-dept.com');
+  const [mailSender, setMailSender] = useState('technical@trustbulkers.gr');
   const [mailRecipient, setMailRecipient] = useState('');
   const [mailSubject, setMailSubject] = useState(`Re: ${caseItem.subject}`);
   const [mailSummary, setMailSummary] = useState('');
@@ -168,22 +181,117 @@ export default function CaseDetailView({
     setCommentText('');
   };
 
-  // Submit email entry
-  const handleAddEmail = (e: React.FormEvent) => {
+  const handleStartEditComment = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentAuthor(comment.author || 'Technical Department');
+    setEditingCommentContent(comment.content || '');
+  };
+
+  const handleSaveComment = () => {
+    if (!editingCommentId || !editingCommentContent.trim() || !editingCommentAuthor.trim()) return;
+    const updated: Case = {
+      ...caseItem,
+      comments: caseItem.comments.map(comment => comment.id === editingCommentId
+        ? {
+            ...comment,
+            author: editingCommentAuthor.trim(),
+            content: editingCommentContent.trim(),
+            date: new Date().toISOString()
+          }
+        : comment
+      ),
+      lastUpdatedDate: new Date().toISOString()
+    };
+    onUpdateCase(updated);
+    setEditingCommentId(null);
+    setEditingCommentAuthor('');
+    setEditingCommentContent('');
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    const target = caseItem.comments.find(comment => comment.id === commentId);
+    if (!target) return;
+    if (!confirm('Delete this internal note?')) return;
+    const updated: Case = {
+      ...caseItem,
+      comments: caseItem.comments.filter(comment => comment.id !== commentId),
+      lastUpdatedDate: new Date().toISOString()
+    };
+    onUpdateCase(updated);
+    if (editingCommentId === commentId) {
+      setEditingCommentId(null);
+      setEditingCommentAuthor('');
+      setEditingCommentContent('');
+    }
+  };
+
+  const resetMailFormForNew = (emailCount = caseItem.emails.length) => {
+    const groupNum = Math.floor(emailCount / 2) + 1;
+    const isReply = emailCount % 2 === 1;
+    setEditingEmailId(null);
+    setMailRef(`${groupNum}${isReply ? 'b' : 'a'}`);
+    setMailDate(toDateTimeLocal());
+    setMailDirection('Outgoing');
+    setMailSender('technical@trustbulkers.gr');
+    setMailRecipient('');
+    setMailSubject(`Re: ${caseItem.subject}`);
+    setMailSummary('');
+    setMailContent('');
+    setMailAttachments('');
+    setMailFollowUp(false);
+    setMailImportant(false);
+  };
+
+  const handleStartEditEmail = (email: Email) => {
+    setEditingEmailId(email.id);
+    setMailRef(email.ref || '');
+    setMailDate(toDateTimeLocal(email.date));
+    setMailDirection(email.direction);
+    setMailSender(email.sender || '');
+    setMailRecipient(email.recipient || '');
+    setMailSubject(email.subject || '');
+    setMailSummary(email.summary || '');
+    setMailContent(email.content || '');
+    setMailAttachments(email.attachments || '');
+    setMailFollowUp(!!email.followUpRequired);
+    setMailImportant(!!email.isImportant);
+    setShowMailForm(true);
+    setExpandedEmails(prev => ({ ...prev, [email.id]: true }));
+  };
+
+  const handleDeleteEmail = (emailId: string) => {
+    const target = caseItem.emails.find(e => e.id === emailId);
+    if (!target) return;
+    if (!confirm(`Delete mail entry ${target.ref} - ${target.subject}?`)) return;
+
+    const updated: Case = {
+      ...caseItem,
+      emails: caseItem.emails.filter(e => e.id !== emailId),
+      lastUpdatedDate: new Date().toISOString()
+    };
+    onUpdateCase(updated);
+    if (editingEmailId === emailId) {
+      setShowMailForm(false);
+      resetMailFormForNew(updated.emails.length);
+    }
+  };
+
+  // Submit or update email entry
+  const handleSubmitEmail = (e: React.FormEvent) => {
     e.preventDefault();
     if (!mailSender.trim() || !mailRecipient.trim() || !mailSubject.trim() || !mailSummary.trim()) {
       alert('Please fill out the sender, recipient, subject and summary.');
       return;
     }
 
-    const newEmail: Email = {
-      id: `em-${Date.now()}`,
+    const cleanEmail: Email = {
+      id: editingEmailId || `em-${Date.now()}`,
       ref: mailRef.trim(),
       direction: mailDirection,
       sender: mailSender.trim(),
       recipient: mailRecipient.trim(),
       subject: mailSubject.trim(),
-      date: new Date().toISOString(),
+      date: mailDate ? new Date(mailDate).toISOString() : new Date().toISOString(),
       summary: mailSummary.trim(),
       content: mailContent.trim(),
       attachments: mailAttachments.trim() || undefined,
@@ -191,28 +299,19 @@ export default function CaseDetailView({
       isImportant: mailImportant
     };
 
+    const updatedEmails = editingEmailId
+      ? caseItem.emails.map(email => email.id === editingEmailId ? cleanEmail : email)
+      : [...caseItem.emails, cleanEmail];
+
     const updated: Case = {
       ...caseItem,
-      emails: [...caseItem.emails, newEmail],
+      emails: updatedEmails,
       lastUpdatedDate: new Date().toISOString()
     };
 
     onUpdateCase(updated);
-    
-    // Close & reset
     setShowMailForm(false);
-    setMailSummary('');
-    setMailContent('');
-    setMailAttachments('');
-    setMailFollowUp(false);
-    setMailImportant(false);
-    
-    // Increment reference guess
-    const count = updated.emails.length;
-    const groupNum = Math.floor(count / 2) + 1;
-    const isReply = count % 2 === 1;
-    setMailRef(`${groupNum}${isReply ? 'b' : 'a'}`);
-    setMailRecipient('');
+    resetMailFormForNew(updatedEmails.length);
   };
 
   // Save modified background description
@@ -652,7 +751,6 @@ export default function CaseDetailView({
               <p className="text-xs text-slate-400 font-sans uppercase">Quick Change Status:</p>
               <div className="grid grid-cols-2 gap-1.5" id="status-selection-grid">
                 {[
-                  { statusName: 'In Worklist', color: 'hover:bg-slate-100 hover:text-slate-900 hover:border-slate-300' },
                   { statusName: 'In Progress', color: 'hover:bg-sky-50 hover:text-sky-800 hover:border-sky-300' },
                   { statusName: 'Awaiting Reply', color: 'hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300' },
                   { statusName: 'Finished', color: 'hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300' },
@@ -806,11 +904,66 @@ export default function CaseDetailView({
             <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-56" id="internal-comments-timeline">
               {caseItem.comments.map((comment) => (
                 <div key={comment.id} className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 text-sm">
-                  <div className="flex items-center justify-between font-medium text-xs text-slate-400">
-                    <span className="font-sans font-bold text-slate-600">{comment.author}</span>
-                    <span className="font-mono">{new Date(comment.date).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-slate-700 font-sans mt-1 whitespace-pre-wrap">{comment.content}</p>
+                  {editingCommentId === comment.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editingCommentAuthor}
+                        onChange={(e) => setEditingCommentAuthor(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-sans focus:outline-none focus:ring-1 focus:ring-sky-500"
+                        placeholder="Author"
+                      />
+                      <textarea
+                        rows={3}
+                        value={editingCommentContent}
+                        onChange={(e) => setEditingCommentContent(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm font-sans focus:outline-none focus:ring-1 focus:ring-sky-500 resize-none"
+                        placeholder="Internal note"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingCommentId(null)}
+                          className="px-2 py-1 text-xs rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveComment}
+                          className="px-2 py-1 text-xs rounded bg-sky-600 hover:bg-sky-700 text-white font-bold"
+                        >
+                          Save Note
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between font-medium text-xs text-slate-400">
+                        <span className="font-sans font-bold text-slate-600">{comment.author || 'Technical Department'}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono">{new Date(comment.date).toLocaleDateString()}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditComment(comment)}
+                            className="text-sky-600 hover:text-sky-800 font-bold"
+                            title="Edit note"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="text-red-500 hover:text-red-700 font-bold"
+                            title="Delete note"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-slate-700 font-sans mt-1 whitespace-pre-wrap">{comment.content}</p>
+                    </>
+                  )}
                 </div>
               ))}
               {caseItem.comments.length === 0 && (
@@ -920,7 +1073,10 @@ export default function CaseDetailView({
               <button
                 type="button"
                 id="btn-trigger-add-email"
-                onClick={() => setShowMailForm(!showMailForm)}
+                onClick={() => {
+                  if (!showMailForm) resetMailFormForNew(caseItem.emails.length);
+                  setShowMailForm(!showMailForm);
+                }}
                 className="px-3.5 py-1.5 text-sm bg-[#0f172a] hover:bg-slate-800 text-slate-100 font-semibold rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
               >
                 <Plus className="h-4 w-4 text-white" />
@@ -930,9 +1086,9 @@ export default function CaseDetailView({
 
             {/* Quick Add Email Form Panel (Inline Collapsible) */}
             {showMailForm && (
-              <form onSubmit={handleAddEmail} className="bg-slate-50/50 border border-slate-100 p-4 rounded-xl mb-6 space-y-4 animate-fadeIn shrink-0" id="add-email-timeline-form">
+              <form onSubmit={handleSubmitEmail} className="bg-slate-50/50 border border-slate-100 p-4 rounded-xl mb-6 space-y-4 animate-fadeIn shrink-0" id="add-email-timeline-form">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <h4 className="text-sm font-sans font-bold text-slate-700">New Correspondence Log</h4>
+                  <h4 className="text-sm font-sans font-bold text-slate-700">{editingEmailId ? 'Edit Correspondence Log' : 'New Correspondence Log'}</h4>
                   <span className="text-xs font-mono font-bold text-slate-400">Ref: {mailRef}</span>
                 </div>
 
@@ -965,14 +1121,15 @@ export default function CaseDetailView({
                     />
                   </div>
 
-                  {/* Date (Auto-filled but changeable) */}
+                  {/* Date */}
                   <div>
-                    <label className="block text-xs font-sans font-bold text-slate-500 uppercase mb-1">Date Logged</label>
+                    <label htmlFor="mail-date" className="block text-xs font-sans font-bold text-slate-500 uppercase mb-1">Date Logged</label>
                     <input
-                      type="text"
-                      disabled
-                      value="Today (Just now)"
-                      className="w-full bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-sm text-slate-400"
+                      id="mail-date"
+                      type="datetime-local"
+                      value={mailDate}
+                      onChange={(e) => setMailDate(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                     />
                   </div>
 
@@ -1086,7 +1243,7 @@ export default function CaseDetailView({
                 <div className="flex justify-end space-x-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowMailForm(false)}
+                    onClick={() => { setShowMailForm(false); resetMailFormForNew(caseItem.emails.length); }}
                     className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg"
                   >
                     Cancel
@@ -1096,7 +1253,7 @@ export default function CaseDetailView({
                     id="btn-add-email-submit"
                     className="px-4 py-1.5 text-sm bg-[#0f172a] hover:bg-slate-800 text-white font-semibold rounded-lg cursor-pointer shadow-sm transition-all"
                   >
-                    Log Message
+                    {editingEmailId ? 'Save Mail Entry' : 'Log Message'}
                   </button>
                 </div>
               </form>
@@ -1164,13 +1321,39 @@ export default function CaseDetailView({
                         </div>
                       </div>
 
-                      {/* Direction label indicator */}
-                      <div className="text-right shrink-0 pl-3">
+                      {/* Direction label + edit/delete actions */}
+                      <div className="text-right shrink-0 pl-3 flex flex-col items-end gap-2">
                         <span className={`px-2 py-0.5 rounded text-xs font-sans font-bold ${
                           isOutgoing ? 'bg-slate-100 text-slate-600' : 'bg-sky-100 text-sky-700'
                         }`}>
                           {email.direction}
                         </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleStartEditEmail(email);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors text-[11px] font-bold"
+                            title="Edit mail entry"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDeleteEmail(email.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-[11px] font-bold"
+                            title="Delete mail entry"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 

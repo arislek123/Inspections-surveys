@@ -59,6 +59,10 @@ export default function CasesListView({
   const [selectedStatus, setSelectedStatus] = useState<CaseStatus | ''>('');
   const [selectedPriority, setSelectedPriority] = useState<CasePriority | ''>('');
   const [selectedResponsible, setSelectedResponsible] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [selectedAuthority, setSelectedAuthority] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
   const [showFinishedOnly, setShowFinishedOnly] = useState<'all' | 'open' | 'finished' | 'postponed'>('open');
 
@@ -75,6 +79,9 @@ export default function CasesListView({
 
   // Available unique superintendents list
   const uniqueSuperintendents = Array.from(new Set(cases.map(c => c.responsiblePerson).filter(Boolean)));
+  const uniqueSuppliers = Array.from(new Set(cases.flatMap(c => [c.vendor, c.agent]).filter(Boolean) as string[])).sort();
+  const uniqueAuthorities = Array.from(new Set(cases.map(c => c.authority).filter(Boolean) as string[])).sort();
+  const quickSearchTerms = ['BWTS', 'LSA', 'FFE', 'CEMS', 'VDR', 'Singapore', 'DNV', 'ABS'];
 
   // Predefined Saved Views
   const [activePreset, setActivePreset] = useState<string>('all');
@@ -88,6 +95,10 @@ export default function CasesListView({
     setSelectedStatus('');
     setSelectedPriority('');
     setSelectedResponsible('');
+    setSelectedSupplier('');
+    setSelectedAuthority('');
+    setDateFrom('');
+    setDateTo('');
     setShowUrgentOnly(false);
     setShowFinishedOnly('open');
 
@@ -120,15 +131,23 @@ export default function CasesListView({
     // Search Term match
     const vName = getVesselName(c.vesselId).toLowerCase();
     const pName = getPortName(c.portId).toLowerCase();
+    const normalizedSearch = searchTerm.toLowerCase();
+    const emailText = (c.emails || []).map(email => `${email.subject} ${email.sender} ${email.recipient} ${email.summary} ${email.content} ${email.attachments || ''}`).join(' ').toLowerCase();
     const matchesSearch = 
-      c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vName.includes(searchTerm.toLowerCase()) ||
-      pName.includes(searchTerm.toLowerCase()) ||
-      c.jobType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.responsiblePerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.details && c.details.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (c.nextAction && c.nextAction.toLowerCase().includes(searchTerm.toLowerCase()));
+      c.id.toLowerCase().includes(normalizedSearch) ||
+      vName.includes(normalizedSearch) ||
+      pName.includes(normalizedSearch) ||
+      c.jobType.toLowerCase().includes(normalizedSearch) ||
+      c.subject.toLowerCase().includes(normalizedSearch) ||
+      c.responsiblePerson.toLowerCase().includes(normalizedSearch) ||
+      (c.details && c.details.toLowerCase().includes(normalizedSearch)) ||
+      (c.nextAction && c.nextAction.toLowerCase().includes(normalizedSearch)) ||
+      (c.vendor && c.vendor.toLowerCase().includes(normalizedSearch)) ||
+      (c.agent && c.agent.toLowerCase().includes(normalizedSearch)) ||
+      (c.authority && c.authority.toLowerCase().includes(normalizedSearch)) ||
+      (c.surveyor && c.surveyor.toLowerCase().includes(normalizedSearch)) ||
+      (c.attachments && c.attachments.toLowerCase().includes(normalizedSearch)) ||
+      emailText.includes(normalizedSearch);
 
     // Filter matches
     const matchesVessel = !selectedVessel || c.vesselId === selectedVessel;
@@ -137,6 +156,12 @@ export default function CasesListView({
     const matchesStatus = !selectedStatus || c.status === selectedStatus;
     const matchesPriority = !selectedPriority || c.priority === selectedPriority;
     const matchesResponsible = !selectedResponsible || c.responsiblePerson === selectedResponsible;
+    const matchesSupplier = !selectedSupplier || c.vendor === selectedSupplier || c.agent === selectedSupplier;
+    const matchesAuthority = !selectedAuthority || c.authority === selectedAuthority;
+    const caseDateText = c.deadline || c.eta || c.etb || c.createdDate || c.lastUpdatedDate;
+    const caseDate = caseDateText ? new Date(caseDateText) : null;
+    const matchesDateFrom = !dateFrom || (caseDate && caseDate >= new Date(dateFrom));
+    const matchesDateTo = !dateTo || (caseDate && caseDate <= new Date(`${dateTo}T23:59:59`));
 
     // Finished / Unfinished / Postponed
     let matchesFinishedState = true;
@@ -151,7 +176,7 @@ export default function CasesListView({
     // Urgent Only
     const matchesUrgentState = !showUrgentOnly || (c.status === 'Urgent' || c.priority === 'Critical');
 
-    return matchesSearch && matchesVessel && matchesPort && matchesJobType && matchesStatus && matchesPriority && matchesResponsible && matchesFinishedState && matchesUrgentState;
+    return matchesSearch && matchesVessel && matchesPort && matchesJobType && matchesStatus && matchesPriority && matchesResponsible && matchesSupplier && matchesAuthority && !!matchesDateFrom && !!matchesDateTo && matchesFinishedState && matchesUrgentState;
   });
 
   // Sort Logic
@@ -202,6 +227,10 @@ export default function CasesListView({
     setSelectedStatus('');
     setSelectedPriority('');
     setSelectedResponsible('');
+    setSelectedSupplier('');
+    setSelectedAuthority('');
+    setDateFrom('');
+    setDateTo('');
     setShowUrgentOnly(false);
     setShowFinishedOnly('all');
     setActivePreset('all');
@@ -325,7 +354,7 @@ export default function CasesListView({
             className="px-4 py-1.5 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
-            <span>Quick Add Case</span>
+            <span>New Survey / Service Case</span>
           </button>
         </div>
       </div>
@@ -385,21 +414,21 @@ export default function CasesListView({
               id="btn-toggle-advanced-filters"
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className={`px-3.5 py-2 text-sm font-semibold rounded-lg border flex items-center space-x-1.5 transition-all cursor-pointer ${
-                showAdvancedFilters || selectedVessel || selectedPort || selectedJobType || selectedStatus || selectedPriority || selectedResponsible || showUrgentOnly || showFinishedOnly !== 'all'
+                showAdvancedFilters || selectedVessel || selectedPort || selectedJobType || selectedStatus || selectedPriority || selectedResponsible || selectedSupplier || selectedAuthority || dateFrom || dateTo || showUrgentOnly || showFinishedOnly !== 'all'
                   ? 'border-sky-200 bg-sky-50/50 text-sky-700'
                   : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               <span>Filters</span>
-              {(selectedVessel || selectedPort || selectedJobType || selectedStatus || selectedPriority || selectedResponsible || showUrgentOnly || showFinishedOnly !== 'all') && (
+              {(selectedVessel || selectedPort || selectedJobType || selectedStatus || selectedPriority || selectedResponsible || selectedSupplier || selectedAuthority || dateFrom || dateTo || showUrgentOnly || showFinishedOnly !== 'all') && (
                 <span className="bg-sky-600 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
                   !
                 </span>
               )}
             </button>
 
-            {(searchTerm || selectedVessel || selectedPort || selectedJobType || selectedStatus || selectedPriority || selectedResponsible || showUrgentOnly || showFinishedOnly !== 'all') && (
+            {(searchTerm || selectedVessel || selectedPort || selectedJobType || selectedStatus || selectedPriority || selectedResponsible || selectedSupplier || selectedAuthority || dateFrom || dateTo || showUrgentOnly || showFinishedOnly !== 'all') && (
               <button
                 id="btn-clear-all-filters"
                 onClick={handleClearFilters}
@@ -409,6 +438,20 @@ export default function CasesListView({
               </button>
             )}
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2" id="quick-search-chips">
+          <span className="text-[11px] font-sans font-bold text-slate-400 uppercase tracking-wider mr-1">Quick search:</span>
+          {quickSearchTerms.map(term => (
+            <button
+              key={term}
+              type="button"
+              onClick={() => setSearchTerm(term)}
+              className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${searchTerm === term ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+            >
+              {term}
+            </button>
+          ))}
         </div>
 
         {/* Advanced Filters Panel (Collapsible) */}
@@ -488,7 +531,6 @@ export default function CasesListView({
                 className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800"
               >
                 <option value="">All Statuses</option>
-                <option value="In Worklist">In Worklist</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Awaiting Reply">Awaiting Reply</option>
                 <option value="Finished">Finished</option>
@@ -521,13 +563,68 @@ export default function CasesListView({
               <select
                 id="filter-finished"
                 value={showFinishedOnly}
-                onChange={(e) => setShowFinishedOnly(e.target.value as 'all' | 'open' | 'finished')}
+                onChange={(e) => setShowFinishedOnly(e.target.value as 'all' | 'open' | 'finished' | 'postponed')}
                 className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800"
               >
                 <option value="all">Show All Closed/Open</option>
                 <option value="open">Show Open Only</option>
                 <option value="finished">Show Closed / Finished Only</option>
               </select>
+            </div>
+
+            {/* Supplier / Agent Filter */}
+            <div>
+              <label htmlFor="filter-supplier" className="block text-[11px] font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Supplier / Agent</label>
+              <select
+                id="filter-supplier"
+                value={selectedSupplier}
+                onChange={(e) => setSelectedSupplier(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800"
+              >
+                <option value="">All Suppliers / Agents</option>
+                {uniqueSuppliers.map(supplier => (
+                  <option key={supplier} value={supplier}>{supplier}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Authority / Class / Flag Filter */}
+            <div>
+              <label htmlFor="filter-authority" className="block text-[11px] font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Authority / Class / Flag</label>
+              <select
+                id="filter-authority"
+                value={selectedAuthority}
+                onChange={(e) => setSelectedAuthority(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800"
+              >
+                <option value="">All Authorities</option>
+                {uniqueAuthorities.map(authority => (
+                  <option key={authority} value={authority}>{authority}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date Range Filter */}
+            <div>
+              <label htmlFor="filter-date-from" className="block text-[11px] font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Date From</label>
+              <input
+                id="filter-date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 font-mono"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="filter-date-to" className="block text-[11px] font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Date To</label>
+              <input
+                id="filter-date-to"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 font-mono"
+              />
             </div>
 
             {/* Urgent Switch */}
@@ -814,7 +911,7 @@ export default function CasesListView({
           {/* Table Footer Stats */}
           <div className="bg-slate-50 border-t border-slate-200 px-5 py-3 flex items-center justify-between text-slate-500 text-xs">
             <span>Showing <strong>{sortedCases.length}</strong> of <strong>{cases.length}</strong> total logged cases</span>
-            <span className="font-mono text-slate-400">Database: Browser LocalStorage</span>
+            <span className="font-mono text-slate-400">Database: Firebase online sync</span>
           </div>
         </div>
       </div>

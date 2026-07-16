@@ -1,20 +1,18 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Inspections & Surveys
 
-# Run and deploy your AI Studio app
+A lightweight web app for vessel survey/service follow-up, cases, jobs, ports, vessels, mail history, and online sync.
 
-This contains everything you need to run your app locally.
+## What it uses
 
-View your app in AI Studio: https://ai.studio/apps/eb2ec9da-4491-42fe-b84e-cb1d0d0a3190
+- React + Vite frontend
+- GitHub Pages hosting
+- Firebase Authentication for Google sign-in
+- Cloud Firestore for online data storage
 
-## Run Locally
+## Deploy
 
-**Prerequisites:**  Node.js
+Push to the `main` branch. GitHub Actions builds the app and deploys it to GitHub Pages.
 
+## Safety note
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Do not commit passwords, private keys, real confidential documents, or company credentials into this repository. Firebase access is controlled by Firestore Security Rules.

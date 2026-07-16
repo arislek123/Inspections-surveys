@@ -40,7 +40,6 @@ export default function DashboardView({
   const totalCases = cases.length;
   const openCases = cases.filter(c => c.status !== 'Finished').length;
   const urgentCases = cases.filter(c => c.status === 'Urgent').length;
-  const worklistCases = cases.filter(c => c.status === 'In Worklist').length;
   const finishedCases = cases.filter(c => c.status === 'Finished').length;
   const postponedCases = cases.filter(c => c.status === 'Postponed').length;
   const reopenedCases = cases.filter(c => c.status === 'Postponed but Reopened').length;
@@ -154,21 +153,16 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Sub-status breakdown bar (In Worklist, In Progress, Awaiting Reply, Postponed) */}
+      {/* Sub-status breakdown bar (In Progress, Awaiting Reply, Reopened, Postponed) */}
       <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm mb-8" id="dashboard-status-breakdown">
         <h4 className="text-sm font-sans font-bold text-slate-800 uppercase tracking-wider mb-4">Case Phase Breakdown (Active Cases)</h4>
         <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-100">
-          <div style={{ width: `${(worklistCases/openCases)*100}%` }} className="bg-slate-400" title={`In Worklist: ${worklistCases}`} />
-          <div style={{ width: `${(inProgressCases/openCases)*100}%` }} className="bg-sky-500" title={`In Progress: ${inProgressCases}`} />
-          <div style={{ width: `${(awaitingReplyCases/openCases)*100}%` }} className="bg-amber-500" title={`Awaiting Reply: ${awaitingReplyCases}`} />
-          <div style={{ width: `${(reopenedCases/openCases)*100}%` }} className="bg-indigo-50" title={`Postponed But Reopened: ${reopenedCases}`} />
-          <div style={{ width: `${(postponedCases/openCases)*100}%` }} className="bg-slate-300" title={`Postponed: ${postponedCases}`} />
+          <div style={{ width: `${openCases ? (inProgressCases/openCases)*100 : 0}%` }} className="bg-sky-500" title={`In Progress: ${inProgressCases}`} />
+          <div style={{ width: `${openCases ? (awaitingReplyCases/openCases)*100 : 0}%` }} className="bg-amber-500" title={`Awaiting Reply: ${awaitingReplyCases}`} />
+          <div style={{ width: `${openCases ? (reopenedCases/openCases)*100 : 0}%` }} className="bg-indigo-500" title={`Postponed But Reopened: ${reopenedCases}`} />
+          <div style={{ width: `${openCases ? (postponedCases/openCases)*100 : 0}%` }} className="bg-slate-300" title={`Postponed: ${postponedCases}`} />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4 pt-2">
-          <div className="flex items-center space-x-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-400 inline-block" />
-            <span className="text-sm text-slate-600 font-sans">Worklist: <strong>{worklistCases}</strong></span>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-2">
           <div className="flex items-center space-x-2">
             <span className="h-2.5 w-2.5 rounded-full bg-sky-500 inline-block" />
             <span className="text-sm text-slate-600 font-sans">In Progress: <strong>{inProgressCases}</strong></span>
@@ -178,7 +172,7 @@ export default function DashboardView({
             <span className="text-sm text-slate-600 font-sans">Awaiting Reply: <strong>{awaitingReplyCases}</strong></span>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-indigo-5050 inline-block" />
+            <span className="h-2.5 w-2.5 rounded-full bg-indigo-500 inline-block" />
             <span className="text-sm text-slate-600 font-sans">Reopened: <strong>{reopenedCases}</strong></span>
           </div>
           <div className="flex items-center space-x-2">

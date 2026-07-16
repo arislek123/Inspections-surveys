@@ -46,8 +46,8 @@ export default function AddCaseModal({
   }, [isOpen, preselectedJobType, jobTypes]);
   
   const [subject, setSubject] = useState('');
-  const [responsiblePerson, setResponsiblePerson] = useState('John Mercer (Technical Supt)');
-  const [status, setStatus] = useState<CaseStatus>('In Worklist');
+  const [responsiblePerson, setResponsiblePerson] = useState('Technical Department');
+  const [status, setStatus] = useState<CaseStatus>('In Progress');
   const [priority, setPriority] = useState<CasePriority>('Medium');
   const [details, setDetails] = useState('');
   const [nextAction, setNextAction] = useState('');
@@ -135,8 +135,8 @@ export default function AddCaseModal({
     setCustomJobType('');
     setIsCustomJob(false);
     setSubject('');
-    setResponsiblePerson('John Mercer (Technical Supt)');
-    setStatus('In Worklist');
+    setResponsiblePerson('Technical Department');
+    setStatus('In Progress');
     setPriority('Medium');
     setDetails('');
     setNextAction('');
@@ -155,10 +155,11 @@ export default function AddCaseModal({
   };
 
   const commonSupts = [
-    'John Mercer (Technical Supt)',
-    'Sarah Jenkins (Marine Manager)',
-    'Marcus Vance (Technical Director)',
-    'Captain on Board',
+    'Technical Department',
+    'Assistant Superintendent',
+    'Technical Superintendent',
+    'Marine Superintendent',
+    'Captain / Chief Engineer',
   ];
 
   return (
@@ -323,7 +324,6 @@ export default function AddCaseModal({
                 onChange={(e) => setStatus(e.target.value as CaseStatus)}
                 className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
               >
-                <option value="In Worklist">In Worklist (Soft Grey/Blue)</option>
                 <option value="In Progress">In Progress (Soft Blue)</option>
                 <option value="Awaiting Reply">Awaiting Reply (Soft Amber)</option>
                 <option value="Urgent">Urgent (Soft Red)</option>

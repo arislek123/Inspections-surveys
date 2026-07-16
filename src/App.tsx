@@ -83,6 +83,13 @@ const writeLocalBackup = (data: AppDatabase) => {
   }
 };
 
+
+const sanitizeForFirestore = <T,>(data: T): T => {
+  // Firestore does not accept undefined values inside objects/arrays.
+  // JSON serialization removes undefined object fields and keeps the payload clean.
+  return JSON.parse(JSON.stringify(data)) as T;
+};
+
 export default function App() {
   // Navigation states
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -124,8 +131,9 @@ export default function App() {
     setSyncError(null);
 
     try {
+      const cleanData = sanitizeForFirestore(data);
       await setDoc(APP_STATE_DOC, {
-        ...data,
+        ...cleanData,
         lastSavedAt: serverTimestamp(),
         lastSavedBy: user?.email || 'unknown',
       }, { merge: true });
@@ -173,8 +181,9 @@ export default function App() {
           // First online run: use local backup if available, otherwise seed data.
           const initialData = readLocalBackup() || seedDatabase;
           applyDatabaseToState(initialData);
+          const cleanInitialData = sanitizeForFirestore(initialData);
           await setDoc(APP_STATE_DOC, {
-            ...initialData,
+            ...cleanInitialData,
             createdAt: serverTimestamp(),
             lastSavedAt: serverTimestamp(),
             lastSavedBy: user.email || 'unknown',
@@ -268,30 +277,74 @@ export default function App() {
     setSelectedCaseId(null);
   };
 
-  // Create a New Vessel Profile
+  // Create / update / archive vessel profiles
   const handleAddVessel = (name: string, imo?: string, fleet?: string) => {
     const newVessel: Vessel = {
       id: `v-${Date.now()}`,
       name,
-      imo,
-      fleet,
+      imo: imo || '',
+      fleet: fleet || '',
+      archived: false,
     };
     const updatedVessels = [...vessels, newVessel];
     saveVessels(updatedVessels);
   };
 
-  // Create a New Port Profile
+  const handleUpdateVessel = (updatedVessel: Vessel) => {
+    const updatedVessels = vessels.map(v => v.id === updatedVessel.id ? updatedVessel : v);
+    saveVessels(updatedVessels);
+  };
+
+  const handleArchiveVessel = (vesselId: string, archived: boolean) => {
+    const updatedVessels = vessels.map(v => v.id === vesselId ? { ...v, archived } : v);
+    saveVessels(updatedVessels);
+  };
+
+  // Delete vessel and keep any linked cases as unassigned
+  const handleDeleteVessel = (vesselId: string) => {
+    const updatedVessels = vessels.filter(v => v.id !== vesselId);
+    const updatedCases = cases.map(c =>
+      c.vesselId === vesselId
+        ? { ...c, vesselId: '', lastUpdatedDate: new Date().toISOString() }
+        : c
+    );
+    persistDatabase({ ...currentDatabase(), vessels: updatedVessels, cases: updatedCases });
+  };
+
+  // Create / update / archive port profiles
   const handleAddPort = (name: string, country: string, eta?: string, etb?: string, ets?: string) => {
     const newPort: Port = {
       id: `p-${Date.now()}`,
       name,
       country,
-      eta,
-      etb,
-      ets,
+      eta: eta || '',
+      etb: etb || '',
+      ets: ets || '',
+      archived: false,
     };
     const updatedPorts = [...ports, newPort];
     savePorts(updatedPorts);
+  };
+
+  const handleUpdatePort = (updatedPort: Port) => {
+    const updatedPorts = ports.map(p => p.id === updatedPort.id ? updatedPort : p);
+    savePorts(updatedPorts);
+  };
+
+  const handleArchivePort = (portId: string, archived: boolean) => {
+    const updatedPorts = ports.map(p => p.id === portId ? { ...p, archived } : p);
+    savePorts(updatedPorts);
+  };
+
+  // Delete port and keep any linked cases as unassigned
+  const handleDeletePort = (portId: string) => {
+    const updatedPorts = ports.filter(p => p.id !== portId);
+    const updatedCases = cases.map(c =>
+      c.portId === portId
+        ? { ...c, portId: '', lastUpdatedDate: new Date().toISOString() }
+        : c
+    );
+    persistDatabase({ ...currentDatabase(), ports: updatedPorts, cases: updatedCases });
   };
 
   // Add Custom Job Type dropdown category
@@ -323,9 +376,14 @@ export default function App() {
     persistDatabase({ ...currentDatabase(), jobTypes: updatedTypes, cases: updatedCases });
   };
 
-  // Reset database back to default seed data
-  const handleResetDatabase = () => {
-    persistDatabase(seedDatabase);
+  // Reset database back to a clean empty workspace.
+  const handleClearDatabase = () => {
+    persistDatabase({
+      cases: [],
+      vessels: [],
+      ports: [],
+      jobTypes: INITIAL_JOB_TYPES,
+    });
     setSelectedCaseId(null);
     setActiveTab('dashboard');
   };
@@ -403,7 +461,11 @@ export default function App() {
           <VesselsView
             vessels={vessels}
             cases={cases}
+            ports={ports}
             onAddVessel={handleAddVessel}
+            onUpdateVessel={handleUpdateVessel}
+            onArchiveVessel={handleArchiveVessel}
+            onDeleteVessel={handleDeleteVessel}
             onSelectCase={handleSelectCase}
           />
         );
@@ -413,6 +475,9 @@ export default function App() {
             ports={ports}
             cases={cases}
             onAddPort={handleAddPort}
+            onUpdatePort={handleUpdatePort}
+            onArchivePort={handleArchivePort}
+            onDeletePort={handleDeletePort}
             onSelectCase={handleSelectCase}
           />
         );
@@ -450,6 +515,7 @@ export default function App() {
             onAddJobType={handleAddJobType}
             onDeleteJobType={handleDeleteJobType}
             onImportFullDatabase={handleImportFullDatabase}
+            onClearDatabase={handleClearDatabase}
             cases={cases}
             vessels={vessels}
             ports={ports}
@@ -517,6 +583,7 @@ export default function App() {
         }}
         cases={cases}
         onQuickAdd={() => setIsAddCaseOpen(true)}
+        userEmail={user.email || undefined}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden relative" id="viewport-main-content">

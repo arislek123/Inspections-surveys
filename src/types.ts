@@ -76,6 +76,7 @@ export interface Vessel {
   name: string;
   imo?: string;
   fleet?: string;
+  archived?: boolean;
 }
 
 export interface Port {
@@ -85,6 +86,7 @@ export interface Port {
   eta?: string;
   etb?: string;
   ets?: string;
+  archived?: boolean;
 }
 
 export interface SavedFilter {
