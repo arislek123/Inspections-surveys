@@ -45,9 +45,9 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
       {/* Header logo / branding */}
       <div className="mb-8 px-1 flex justify-center">
         <img
-          src="./survinspec-logo-transparent.png"
+          src="./survinspec-logo-sidebar-light.png"
           alt="SURVINSPEC logo"
-          className="w-[190px] h-auto block drop-shadow-[0_10px_20px_rgba(15,23,42,0.35)]"
+          className="w-[190px] h-auto block drop-shadow-[0_12px_28px_rgba(14,165,233,0.22)]"
         />
       </div>
 
