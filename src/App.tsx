@@ -260,7 +260,10 @@ export default function App() {
     };
 
     const updatedCases = [newCase, ...cases];
-    saveCases(updatedCases);
+    const updatedJobTypes = jobTypes.some(t => t.toLowerCase() === newCase.jobType.toLowerCase())
+      ? jobTypes
+      : [...jobTypes, newCase.jobType];
+    persistDatabase({ ...currentDatabase(), cases: updatedCases, jobTypes: updatedJobTypes });
     handleSelectCase(newId);
   };
 

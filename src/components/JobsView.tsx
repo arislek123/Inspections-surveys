@@ -48,6 +48,7 @@ export default function JobsView({
     // 1. Prepare Cases Sheet Data
     const casesData = cases.map(c => ({
       'Case ID': c.id,
+      'PO Number': c.poNumber || 'MISSING PO',
       'Vessel Name': getVesselName(c.vesselId),
       'Port Name': getPortName(c.portId),
       'Job Type / Category': c.jobType,
@@ -73,15 +74,15 @@ export default function JobsView({
     // 2. Prepare Jobs/Job Categories Sheet Data
     const jobsData = jobTypes.map(type => {
       const associatedCases = cases.filter(c => c.jobType === type);
-      const urgentCount = associatedCases.filter(c => c.status === 'Urgent' || c.priority === 'Critical').length;
+      const criticalCount = associatedCases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
       const completedCount = associatedCases.filter(c => c.status === 'Finished').length;
       const activeCount = associatedCases.length - completedCount;
 
       return {
         'Job Category Name': type,
         'Total Logged Cases': associatedCases.length,
-        'Active Worklist Cases': activeCount,
-        'Urgent / Critical Cases': urgentCount,
+        'Active Cases': activeCount,
+        'Critical Priority Cases': criticalCount,
         'Completed/Closed Cases': completedCount
       };
     });
@@ -94,6 +95,7 @@ export default function JobsView({
     // Set column widths for Cases sheet
     const maxW_cases = [
       { wch: 15 }, // Case ID
+      { wch: 20 }, // PO Number
       { wch: 20 }, // Vessel Name
       { wch: 15 }, // Port Name
       { wch: 25 }, // Job Type
@@ -121,8 +123,8 @@ export default function JobsView({
     const maxW_jobs = [
       { wch: 30 }, // Job Category Name
       { wch: 20 }, // Total Logged Cases
-      { wch: 22 }, // Active Worklist Cases
-      { wch: 22 }, // Urgent / Critical Cases
+      { wch: 22 }, // Active Cases
+      { wch: 22 }, // Critical Priority Cases
       { wch: 22 }  // Completed/Closed Cases
     ];
     wsJobs['!cols'] = maxW_jobs;
@@ -258,8 +260,8 @@ export default function JobsView({
           const associatedCases = cases.filter((c) => c.jobType === type);
           const openCases = associatedCases.filter((c) => c.status !== 'Finished');
           const finishedCases = associatedCases.filter((c) => c.status === 'Finished');
-          const urgentCases = associatedCases.filter(
-            (c) => c.status === 'Urgent' || c.priority === 'Critical'
+          const criticalCases = associatedCases.filter(
+            (c) => c.priority === 'Critical' || c.status === 'Urgent'
           );
 
           const isEditing = editingTypeName === type;
@@ -374,7 +376,7 @@ export default function JobsView({
                   </div>
                   <div>
                     <span className="text-xl font-sans font-bold text-red-600 block leading-none">
-                      {urgentCases.length}
+                      {criticalCases.length}
                     </span>
                     <span className="text-[9px] font-sans font-bold text-slate-400 uppercase tracking-wide">
                       Urgent
@@ -406,7 +408,7 @@ export default function JobsView({
                           {c.subject}
                         </p>
                         <p className="text-[9px] font-mono text-slate-400 mt-0.5">
-                          Ref: {c.id}
+                          Ref: {c.id} • PO: {c.poNumber || 'MISSING'}
                         </p>
                       </div>
                       <div className="flex items-center space-x-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -435,7 +437,7 @@ export default function JobsView({
                           <>
                             <span
                               className={`px-1.5 py-0.2 rounded text-[9px] font-sans font-bold uppercase ${
-                                c.status === 'Urgent'
+                                c.priority === 'Critical' || c.status === 'Urgent'
                                   ? 'bg-red-50 text-red-700 border border-red-100'
                                   : 'bg-slate-200/50 text-slate-700 border border-slate-200'
                               }`}

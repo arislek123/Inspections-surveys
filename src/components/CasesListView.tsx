@@ -81,7 +81,7 @@ export default function CasesListView({
   const uniqueSuperintendents = Array.from(new Set(cases.map(c => c.responsiblePerson).filter(Boolean)));
   const uniqueSuppliers = Array.from(new Set(cases.flatMap(c => [c.vendor, c.agent]).filter(Boolean) as string[])).sort();
   const uniqueAuthorities = Array.from(new Set(cases.map(c => c.authority).filter(Boolean) as string[])).sort();
-  const quickSearchTerms = ['BWTS', 'LSA', 'FFE', 'CEMS', 'VDR', 'Singapore', 'DNV', 'ABS'];
+  const quickSearchTerms = Array.from(new Set(['BWTS', 'LSA', 'FFE', 'CEMS', 'VDR', 'Singapore', 'DNV', 'ABS', ...jobTypes])).filter(Boolean);
 
   // Predefined Saved Views
   const [activePreset, setActivePreset] = useState<string>('all');
@@ -135,6 +135,7 @@ export default function CasesListView({
     const emailText = (c.emails || []).map(email => `${email.subject} ${email.sender} ${email.recipient} ${email.summary} ${email.content} ${email.attachments || ''}`).join(' ').toLowerCase();
     const matchesSearch = 
       c.id.toLowerCase().includes(normalizedSearch) ||
+      (c.poNumber && c.poNumber.toLowerCase().includes(normalizedSearch)) ||
       vName.includes(normalizedSearch) ||
       pName.includes(normalizedSearch) ||
       c.jobType.toLowerCase().includes(normalizedSearch) ||
@@ -174,7 +175,7 @@ export default function CasesListView({
     }
 
     // Urgent Only
-    const matchesUrgentState = !showUrgentOnly || (c.status === 'Urgent' || c.priority === 'Critical');
+    const matchesUrgentState = !showUrgentOnly || c.priority === 'Critical' || c.status === 'Urgent';
 
     return matchesSearch && matchesVessel && matchesPort && matchesJobType && matchesStatus && matchesPriority && matchesResponsible && matchesSupplier && matchesAuthority && !!matchesDateFrom && !!matchesDateTo && matchesFinishedState && matchesUrgentState;
   });
@@ -241,6 +242,7 @@ export default function CasesListView({
     // 1. Prepare Cases Sheet Data
     const casesData = sortedCases.map(c => ({
       'Case ID': c.id,
+      'PO Number': c.poNumber || 'MISSING PO',
       'Vessel Name': getVesselName(c.vesselId),
       'Port Name': getPortName(c.portId),
       'Job Type / Category': c.jobType,
@@ -266,15 +268,15 @@ export default function CasesListView({
     // 2. Prepare Jobs/Job Categories Sheet Data
     const jobsData = jobTypes.map(type => {
       const associatedCases = cases.filter(c => c.jobType === type);
-      const urgentCount = associatedCases.filter(c => c.status === 'Urgent' || c.priority === 'Critical').length;
+      const criticalCount = associatedCases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
       const completedCount = associatedCases.filter(c => c.status === 'Finished').length;
       const activeCount = associatedCases.length - completedCount;
 
       return {
         'Job Category Name': type,
         'Total Logged Cases': associatedCases.length,
-        'Active Worklist Cases': activeCount,
-        'Urgent / Critical Cases': urgentCount,
+        'Active Cases': activeCount,
+        'Critical Priority Cases': criticalCount,
         'Completed/Closed Cases': completedCount
       };
     });
@@ -287,6 +289,7 @@ export default function CasesListView({
     // Set column widths for Cases sheet
     const maxW_cases = [
       { wch: 15 }, // Case ID
+      { wch: 20 }, // PO Number
       { wch: 20 }, // Vessel Name
       { wch: 15 }, // Port Name
       { wch: 25 }, // Job Type
@@ -314,8 +317,8 @@ export default function CasesListView({
     const maxW_jobs = [
       { wch: 30 }, // Job Category Name
       { wch: 20 }, // Total Logged Cases
-      { wch: 22 }, // Active Worklist Cases
-      { wch: 22 }, // Urgent / Critical Cases
+      { wch: 22 }, // Active Cases
+      { wch: 22 }, // Critical Priority Cases
       { wch: 22 }  // Completed/Closed Cases
     ];
     wsJobs['!cols'] = maxW_jobs;
@@ -364,7 +367,7 @@ export default function CasesListView({
         <span className="text-xs font-sans font-bold text-slate-400 uppercase tracking-wider mr-3 whitespace-nowrap">Views:</span>
         {[
           { id: 'all', label: 'Active Cases' },
-          { id: 'urgent', label: 'Urgent Cases' },
+          { id: 'urgent', label: 'Critical Priority' },
           { id: 'deadlines', label: 'Deadlines Priority' },
           { id: 'postponed', label: 'Postponed Cases' },
           { id: 'finished-month', label: 'Finished Cases' },
@@ -536,7 +539,6 @@ export default function CasesListView({
                 <option value="Finished">Finished</option>
                 <option value="Postponed">Postponed</option>
                 <option value="Postponed but Reopened">Postponed but Reopened</option>
-                <option value="Urgent">Urgent</option>
               </select>
             </div>
 
@@ -627,7 +629,7 @@ export default function CasesListView({
               />
             </div>
 
-            {/* Urgent Switch */}
+            {/* Critical Priority Switch */}
             <div className="flex items-center space-x-2 pt-5">
               <input
                 type="checkbox"
@@ -637,7 +639,7 @@ export default function CasesListView({
                 className="h-4 w-4 text-sky-600 border-slate-300 rounded focus:ring-sky-500 cursor-pointer"
               />
               <label htmlFor="filter-urgent" className="text-sm font-sans font-bold text-red-600 uppercase tracking-wide cursor-pointer">
-                Urgent & Critical Only
+                Critical Priority Only
               </label>
             </div>
           </div>
@@ -656,6 +658,9 @@ export default function CasesListView({
                       <span>Case ID</span>
                       <ArrowUpDown className="h-3 w-3 text-slate-400" />
                     </div>
+                  </th>
+                  <th className="px-5 py-3">
+                    <span>PO Number</span>
                   </th>
                   <th className="px-5 py-3 cursor-pointer select-none hover:bg-slate-100/80 transition-colors" onClick={() => handleRequestSort('vessel')}>
                     <div className="flex items-center space-x-1">
@@ -735,6 +740,19 @@ export default function CasesListView({
                       {/* ID */}
                       <td className="px-5 py-3.5 font-mono font-bold text-xs text-slate-400 group-hover:text-slate-900 transition-colors">
                         {c.id}
+                      </td>
+
+                      {/* PO Number */}
+                      <td className="px-5 py-3.5 whitespace-nowrap font-mono text-xs">
+                        {c.poNumber ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold" title="PO issued">
+                            {c.poNumber}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 font-bold" title="PO number missing">
+                            MISSING PO
+                          </span>
+                        )}
                       </td>
 
                       {/* Vessel */}
@@ -889,7 +907,7 @@ export default function CasesListView({
 
                 {sortedCases.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-5 py-12 text-center text-slate-400">
+                    <td colSpan={11} className="px-5 py-12 text-center text-slate-400">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <SlidersHorizontal className="h-8 w-8 text-slate-300" />
                         <p className="text-xs font-semibold">No maritime cases match your filter criteria.</p>

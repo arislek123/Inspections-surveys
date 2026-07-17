@@ -28,7 +28,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, userEmail }: SidebarProps) {
   const openCasesCount = cases.filter(c => c.status !== 'Finished').length;
-  const urgentCasesCount = cases.filter(c => c.status === 'Urgent' || c.priority === 'Critical').length;
+  const urgentCasesCount = cases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -104,7 +104,7 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
             <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
             <div>
               <p className="text-xs font-sans font-bold text-red-300">Action Required</p>
-              <p className="text-[11px] font-mono text-red-400 mt-0.5">{urgentCasesCount} Urgent cases active.</p>
+              <p className="text-[11px] font-mono text-red-400 mt-0.5">{urgentCasesCount} Critical priority cases active.</p>
             </div>
           </div>
         </div>

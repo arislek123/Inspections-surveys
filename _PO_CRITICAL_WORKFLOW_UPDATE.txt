@@ -1,0 +1,9 @@
+SURVINSPEC workflow update included:
+- Target date/deadline is mandatory on new case.
+- PO number is mandatory on new case and visible in Cases and Jobs.
+- PO number can be edited in Case Summary.
+- Jobs cannot be marked Finished without target date and PO number.
+- Urgent removed from quick status/new case status; Critical priority drives action alerts.
+- Vessel card view shows all vessel jobs with port and PO number.
+- Ports table ETA/ETB/ETS column removed.
+- Quick search chips include all job types, including custom/new job types.

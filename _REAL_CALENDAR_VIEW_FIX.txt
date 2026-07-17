@@ -1,0 +1,1 @@
+Added Real Calendar mode to Calendar page. Top-right Calendar View selector switches between Deadline List and Real Calendar. Month view shows vessel names and jobs on their target dates; clicking a date shows job info and clicking a job opens the case.

@@ -48,6 +48,7 @@ export interface Case {
   createdDate: string;
   lastUpdatedDate: string;
   deadline?: string;
+  poNumber?: string;
   details: string;
   
   // Next Action Section

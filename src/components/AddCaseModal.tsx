@@ -52,6 +52,7 @@ export default function AddCaseModal({
   const [details, setDetails] = useState('');
   const [nextAction, setNextAction] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [poNumber, setPoNumber] = useState('');
 
   // State for advanced fields
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -92,6 +93,10 @@ export default function AddCaseModal({
       setValidationError('Responsible person is required.');
       return;
     }
+    if (!deadline) {
+      setValidationError('Target date / deadline is required.');
+      return;
+    }
 
     const selectedJobType = isCustomJob ? customJobType.trim() : jobType;
     if (!selectedJobType) {
@@ -109,7 +114,8 @@ export default function AddCaseModal({
       priority,
       details: details.trim(),
       nextAction: nextAction.trim(),
-      deadline: deadline || undefined,
+      deadline,
+      poNumber: poNumber.trim(),
       
       // Advanced optional
       agent: agent.trim() || undefined,
@@ -141,6 +147,7 @@ export default function AddCaseModal({
     setDetails('');
     setNextAction('');
     setDeadline('');
+    setPoNumber('');
     setAgent('');
     setVendor('');
     setSurveyor('');
@@ -172,7 +179,7 @@ export default function AddCaseModal({
         <div className="bg-[#0f172a] px-6 py-4 flex items-center justify-between text-white shrink-0">
           <div>
             <h3 className="text-sm font-sans font-bold tracking-tight uppercase">Log New Technical Case</h3>
-            <p className="text-[10px] text-slate-400 font-sans mt-0.5">Quick 30-second entry for vessel surveys and inspections.</p>
+            <p className="text-[10px] text-slate-400 font-sans mt-0.5">Quick entry for vessel surveys, services and technical follow-up jobs.</p>
           </div>
           <button 
             id="btn-close-case-modal"
@@ -305,13 +312,28 @@ export default function AddCaseModal({
 
             {/* Deadline / Target Date */}
             <div>
-              <label htmlFor="modal-deadline" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Target Date / Deadline</label>
+              <label htmlFor="modal-deadline" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Target Date / Deadline <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 id="modal-deadline"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
                 className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                required
+              />
+            </div>
+
+            {/* PO Number */}
+            <div>
+              <label htmlFor="modal-po-number" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">PO Number</label>
+              <input
+                type="text"
+                id="modal-po-number"
+                value={poNumber}
+                onChange={(e) => setPoNumber(e.target.value)}
+                placeholder="Optional, e.g. PO-7030-S260006"
+                className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                required
               />
             </div>
 
@@ -326,7 +348,6 @@ export default function AddCaseModal({
               >
                 <option value="In Progress">In Progress (Soft Blue)</option>
                 <option value="Awaiting Reply">Awaiting Reply (Soft Amber)</option>
-                <option value="Urgent">Urgent (Soft Red)</option>
                 <option value="Postponed">Postponed (Soft Grey)</option>
                 <option value="Postponed but Reopened">Postponed but Reopened (Soft Purple/Orange)</option>
               </select>

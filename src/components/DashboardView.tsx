@@ -39,7 +39,7 @@ export default function DashboardView({
   // Calculate stats
   const totalCases = cases.length;
   const openCases = cases.filter(c => c.status !== 'Finished').length;
-  const urgentCases = cases.filter(c => c.status === 'Urgent').length;
+  const urgentCases = cases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
   const finishedCases = cases.filter(c => c.status === 'Finished').length;
   const postponedCases = cases.filter(c => c.status === 'Postponed').length;
   const reopenedCases = cases.filter(c => c.status === 'Postponed but Reopened').length;
@@ -51,7 +51,7 @@ export default function DashboardView({
     const vesselCases = cases.filter(c => c.vesselId === v.id);
     const totalCount = vesselCases.length;
     const openCount = vesselCases.filter(c => c.status !== 'Finished').length;
-    const urgentCount = vesselCases.filter(c => c.status === 'Urgent' || c.priority === 'Critical').length;
+    const urgentCount = vesselCases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
     return {
       vessel: v,
       totalCount,
@@ -118,7 +118,7 @@ export default function DashboardView({
 
         {/* Urgent */}
         <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex flex-col justify-between">
-          <p className="text-sm text-slate-500 font-semibold uppercase tracking-wider">Urgent</p>
+          <p className="text-sm text-slate-500 font-semibold uppercase tracking-wider">Critical</p>
           <div className="flex items-end justify-between mt-2">
             <p className="text-4xl font-sans font-bold text-red-600 leading-none">{urgentCases}</p>
             <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 font-medium">High Prio</span>
@@ -212,7 +212,7 @@ export default function DashboardView({
                       <span>{openCount} active / {totalCount} total</span>
                       {urgentCount > 0 && (
                         <span className="bg-red-50 text-red-700 px-1.5 py-0.2 border border-red-100 rounded font-sans font-bold text-[10px] uppercase tracking-wider">
-                          {urgentCount} Urgent
+                          {urgentCount} Critical
                         </span>
                       )}
                     </div>

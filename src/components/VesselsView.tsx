@@ -53,7 +53,7 @@ export default function VesselsView({
   const getVesselMetrics = (vesselId: string) => {
     const vesselCases = cases.filter(c => c.vesselId === vesselId);
     const openCases = vesselCases.filter(c => c.status !== 'Finished' && c.status !== 'Postponed');
-    const urgentCases = vesselCases.filter(c => c.status === 'Urgent' || c.priority === 'Critical');
+    const criticalCases = vesselCases.filter(c => c.priority === 'Critical' || c.status === 'Urgent');
     const sortedByUpdate = [...vesselCases].sort(
       (a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime()
     );
@@ -66,7 +66,7 @@ export default function VesselsView({
     return {
       vesselCases,
       openCases,
-      urgentCases,
+      criticalCases,
       nextCase,
       latestCase: sortedByUpdate[0],
       latestUpdate: sortedByUpdate[0]?.lastUpdatedDate,
@@ -220,7 +220,7 @@ export default function VesselsView({
                 <tr>
                   <th className="px-5 py-3">Vessel</th>
                   <th className="px-5 py-3">Open Cases</th>
-                  <th className="px-5 py-3">Urgent</th>
+                  <th className="px-5 py-3">Critical</th>
                   <th className="px-5 py-3">Next Port</th>
                   <th className="px-5 py-3">Next Attendance</th>
                   <th className="px-5 py-3">Latest Update</th>
@@ -247,7 +247,7 @@ export default function VesselsView({
                         </div>
                       </td>
                       <td className="px-5 py-3 font-bold text-sky-700">{metrics.openCases.length}</td>
-                      <td className="px-5 py-3 font-bold text-red-600">{metrics.urgentCases.length}</td>
+                      <td className="px-5 py-3 font-bold text-red-600">{metrics.criticalCases.length}</td>
                       <td className="px-5 py-3">
                         <p className="font-semibold text-slate-700">{nextCase?.portId ? getPortName(nextCase.portId) : '—'}</p>
                         <p className="text-xs text-slate-400">{nextCase?.subject || 'No active case'}</p>
@@ -307,16 +307,21 @@ export default function VesselsView({
                 <div className="grid grid-cols-3 gap-2 mt-5 py-3 border-y border-slate-100 text-center">
                   <div><span className="text-2xl font-bold text-slate-950 block">{metrics.vesselCases.length}</span><span className="text-[10px] font-bold text-slate-400 uppercase">Total</span></div>
                   <div><span className="text-2xl font-bold text-sky-600 block">{metrics.openCases.length}</span><span className="text-[10px] font-bold text-slate-400 uppercase">Open</span></div>
-                  <div><span className="text-2xl font-bold text-red-600 block">{metrics.urgentCases.length}</span><span className="text-[10px] font-bold text-slate-400 uppercase">Urgent</span></div>
+                  <div><span className="text-2xl font-bold text-red-600 block">{metrics.criticalCases.length}</span><span className="text-[10px] font-bold text-slate-400 uppercase">Critical</span></div>
                 </div>
-                <div className="mt-4 space-y-2">
-                  {metrics.openCases.slice(0, 3).map((c) => (
+                <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {metrics.vesselCases
+                    .sort((a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime())
+                    .map((c) => (
                     <button key={c.id} type="button" onClick={() => onSelectCase(c.id)} className="w-full p-2 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-100 text-left">
-                      <p className="font-semibold text-slate-800 truncate text-sm">{c.subject}</p>
-                      <p className="text-[11px] font-mono text-slate-400">{c.id} • {c.status}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-slate-800 truncate text-sm">{c.subject}</p>
+                        <span className="text-[10px] shrink-0 px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-500 font-bold">{getPortName(c.portId)}</span>
+                      </div>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">{c.id} • {c.status} • PO: {c.poNumber || 'MISSING'}</p>
                     </button>
                   ))}
-                  {metrics.openCases.length === 0 && <p className="text-sm text-slate-400 py-3 italic text-center">No active surveys or issues logged.</p>}
+                  {metrics.vesselCases.length === 0 && <p className="text-sm text-slate-400 py-3 italic text-center">No surveys or issues logged.</p>}
                 </div>
               </div>
             );

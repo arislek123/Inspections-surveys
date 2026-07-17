@@ -1,0 +1,1 @@
+PO number is now optional when creating a case and optional when closing/marking a case as Finished. Target date remains mandatory.

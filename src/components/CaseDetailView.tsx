@@ -105,6 +105,7 @@ export default function CaseDetailView({
   const [summaryResponsiblePerson, setSummaryResponsiblePerson] = useState(caseItem.responsiblePerson);
   const [summaryCreatedDate, setSummaryCreatedDate] = useState(caseItem.createdDate);
   const [summaryDeadline, setSummaryDeadline] = useState(caseItem.deadline || '');
+  const [summaryPoNumber, setSummaryPoNumber] = useState(caseItem.poNumber || '');
   const [summaryAgent, setSummaryAgent] = useState(caseItem.agent || '');
   const [summaryVendor, setSummaryVendor] = useState(caseItem.vendor || '');
   const [summaryAuthority, setSummaryAuthority] = useState(caseItem.authority || '');
@@ -119,6 +120,7 @@ export default function CaseDetailView({
     setSummaryResponsiblePerson(caseItem.responsiblePerson);
     setSummaryCreatedDate(caseItem.createdDate);
     setSummaryDeadline(caseItem.deadline || '');
+    setSummaryPoNumber(caseItem.poNumber || '');
     setSummaryAgent(caseItem.agent || '');
     setSummaryVendor(caseItem.vendor || '');
     setSummaryAuthority(caseItem.authority || '');
@@ -137,6 +139,10 @@ export default function CaseDetailView({
 
   // Quick state change trigger
   const handleStatusChange = (newStatus: CaseStatus) => {
+    if (newStatus === 'Finished' && !caseItem.deadline) {
+      alert('Target date / deadline is required before a job can be marked as Finished.');
+      return;
+    }
     const updated: Case = {
       ...caseItem,
       status: newStatus,
@@ -345,6 +351,14 @@ export default function CaseDetailView({
       alert('Case Subject cannot be empty.');
       return;
     }
+    if (!summaryDeadline) {
+      alert('Target date / deadline is required.');
+      return;
+    }
+    if (!summaryPoNumber.trim()) {
+      alert('PO number is required.');
+      return;
+    }
     const updated: Case = {
       ...caseItem,
       subject: summarySubject.trim(),
@@ -354,6 +368,7 @@ export default function CaseDetailView({
       responsiblePerson: summaryResponsiblePerson.trim(),
       createdDate: summaryCreatedDate,
       deadline: summaryDeadline ? summaryDeadline : undefined,
+      poNumber: summaryPoNumber.trim() || undefined,
       agent: summaryAgent.trim() || undefined,
       vendor: summaryVendor.trim() || undefined,
       authority: summaryAuthority.trim() || undefined,
@@ -577,12 +592,23 @@ export default function CaseDetailView({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 font-sans uppercase">Deadline</label>
+                    <label className="block text-xs font-bold text-slate-400 font-sans uppercase">Deadline *</label>
                     <input
                       type="date"
                       value={summaryDeadline}
                       onChange={(e) => setSummaryDeadline(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono mt-1 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 font-sans uppercase">PO Number</label>
+                    <input
+                      type="text"
+                      value={summaryPoNumber}
+                      onChange={(e) => setSummaryPoNumber(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono mt-1 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      placeholder="e.g. PO-7030-S260006"
                     />
                   </div>
                 </div>
@@ -700,6 +726,13 @@ export default function CaseDetailView({
                   {caseItem.deadline || 'No target date'}
                 </p>
               </div>
+
+              <div>
+                <p className="text-xs text-slate-400 font-sans uppercase">PO Number</p>
+                <p className={`font-mono mt-0.5 ${caseItem.poNumber ? 'text-emerald-700 font-semibold' : 'text-slate-400'}`}>
+                  {caseItem.poNumber || 'No PO issued'}
+                </p>
+              </div>
             </div>
  
             {/* Extra shipping logistics data if available */}
@@ -755,7 +788,6 @@ export default function CaseDetailView({
                   { statusName: 'Awaiting Reply', color: 'hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300' },
                   { statusName: 'Finished', color: 'hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300' },
                   { statusName: 'Postponed', color: 'hover:bg-slate-100 hover:text-slate-600 hover:border-slate-300' },
-                  { statusName: 'Urgent', color: 'hover:bg-red-50 hover:text-red-800 hover:border-red-300' },
                   { statusName: 'Postponed but Reopened', color: 'hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300' }
                 ].map(({ statusName, color }) => (
                   <button
