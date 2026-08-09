@@ -61,7 +61,7 @@ function getMondayFirstBlankCount(firstDayOfMonth: Date): number {
 
 export default function CalendarView({ cases, vessels, ports, onSelectCase }: CalendarViewProps) {
   const [filterVessel, setFilterVessel] = useState('');
-  const [mode, setMode] = useState<CalendarMode>('list');
+  const [mode, setMode] = useState<CalendarMode>('month');
 
   const today = useMemo(() => {
     const d = new Date();
@@ -397,11 +397,13 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                             onSelectCase(c.id);
                           }}
                           className={`rounded-md px-2 py-1 border cursor-pointer ${
-                            c.priority === 'Critical'
-                              ? 'bg-red-50 border-red-100 text-red-800'
-                              : c.priority === 'High'
-                                ? 'bg-orange-50 border-orange-100 text-orange-800'
-                                : 'bg-slate-50 border-slate-100 text-slate-700'
+                            c.status === 'Postponed' || c.status === 'Postponed but Reopened'
+                              ? 'bg-purple-50 border-purple-100 text-purple-800'
+                              : c.priority === 'Critical'
+                                ? 'bg-red-50 border-red-100 text-red-800'
+                                : c.priority === 'High'
+                                  ? 'bg-orange-50 border-orange-100 text-orange-800'
+                                  : 'bg-slate-50 border-slate-100 text-slate-700'
                           }`}
                         >
                           <div className="text-[10px] font-extrabold truncate">{getVesselName(c.vesselId)}</div>
@@ -457,11 +459,13 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                         </p>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded border font-bold shrink-0 ${
-                        c.priority === 'Critical'
-                          ? 'bg-red-50 text-red-700 border-red-100'
-                          : c.priority === 'High'
-                            ? 'bg-orange-50 text-orange-700 border-orange-100'
-                            : 'bg-slate-50 text-slate-600 border-slate-100'
+                        c.status === 'Postponed' || c.status === 'Postponed but Reopened'
+                          ? 'bg-purple-50 text-purple-700 border-purple-100'
+                          : c.priority === 'Critical'
+                            ? 'bg-red-50 text-red-700 border-red-100'
+                            : c.priority === 'High'
+                              ? 'bg-orange-50 text-orange-700 border-orange-100'
+                              : 'bg-slate-50 text-slate-600 border-slate-100'
                       }`}>
                         {c.priority}
                       </span>

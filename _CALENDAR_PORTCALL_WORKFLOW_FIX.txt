@@ -1,0 +1,13 @@
+SURVINSPEC calendar / port-call workflow update.
+
+Included:
+- App opens directly to Calendar.
+- Sidebar order changed: Calendar, Cases & Jobs, Vessels, Ports, Dashboard, Jobs, Settings.
+- Calendar page default view is Real Calendar; Deadline List appears only if selected.
+- Postponed / Postponed but Reopened jobs appear purple in the calendar.
+- PO number is optional everywhere; Target Date remains mandatory.
+- Ports page now supports vessel port calls under each port.
+- Port call fields: Vessel, Port, ETA, ETB, ETS, Agent.
+- New job can use Manual fixed date or scheduled vessel port call ETB.
+- Jobs linked to a port call auto-update their target date if the port call ETB changes.
+- No existing Firebase data is deleted.

@@ -20,7 +20,7 @@ import SettingsView from './components/SettingsView';
 import JobsView from './components/JobsView';
 
 import { auth, db, googleProvider } from './firebase';
-import { Case, Vessel, Port } from './types';
+import { Case, Vessel, Port, PortCall } from './types';
 import {
   INITIAL_CASES,
   INITIAL_VESSELS,
@@ -33,6 +33,7 @@ const STORAGE_KEYS = {
   VESSELS: 'maritime_techops_vessels',
   PORTS: 'maritime_techops_ports',
   JOB_TYPES: 'maritime_techops_job_types',
+  PORT_CALLS: 'maritime_techops_port_calls',
 };
 
 const APP_STATE_DOC = doc(db, 'workspaces', 'default');
@@ -41,6 +42,7 @@ type AppDatabase = {
   cases: Case[];
   vessels: Vessel[];
   ports: Port[];
+  portCalls: PortCall[];
   jobTypes: string[];
 };
 
@@ -48,6 +50,7 @@ const seedDatabase: AppDatabase = {
   cases: INITIAL_CASES,
   vessels: INITIAL_VESSELS,
   ports: INITIAL_PORTS,
+  portCalls: [],
   jobTypes: INITIAL_JOB_TYPES,
 };
 
@@ -57,12 +60,14 @@ const readLocalBackup = (): AppDatabase | null => {
     const storedVessels = localStorage.getItem(STORAGE_KEYS.VESSELS);
     const storedPorts = localStorage.getItem(STORAGE_KEYS.PORTS);
     const storedJobTypes = localStorage.getItem(STORAGE_KEYS.JOB_TYPES);
+    const storedPortCalls = localStorage.getItem(STORAGE_KEYS.PORT_CALLS);
 
     if (storedCases && storedVessels && storedPorts && storedJobTypes) {
       return {
         cases: JSON.parse(storedCases),
         vessels: JSON.parse(storedVessels),
         ports: JSON.parse(storedPorts),
+        portCalls: storedPortCalls ? JSON.parse(storedPortCalls) : [],
         jobTypes: JSON.parse(storedJobTypes),
       };
     }
@@ -78,6 +83,7 @@ const writeLocalBackup = (data: AppDatabase) => {
     localStorage.setItem(STORAGE_KEYS.VESSELS, JSON.stringify(data.vessels));
     localStorage.setItem(STORAGE_KEYS.PORTS, JSON.stringify(data.ports));
     localStorage.setItem(STORAGE_KEYS.JOB_TYPES, JSON.stringify(data.jobTypes));
+    localStorage.setItem(STORAGE_KEYS.PORT_CALLS, JSON.stringify(data.portCalls || []));
   } catch (err) {
     console.error('Could not write local backup', err);
   }
@@ -92,7 +98,7 @@ const sanitizeForFirestore = <T,>(data: T): T => {
 
 export default function App() {
   // Navigation states
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>('calendar');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [isAddCaseOpen, setIsAddCaseOpen] = useState<boolean>(false);
   const [preselectedJobType, setPreselectedJobType] = useState<string | undefined>(undefined);
@@ -108,12 +114,14 @@ export default function App() {
   const [cases, setCases] = useState<Case[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [ports, setPorts] = useState<Port[]>([]);
+  const [portCalls, setPortCalls] = useState<PortCall[]>([]);
   const [jobTypes, setJobTypes] = useState<string[]>([]);
 
   const applyDatabaseToState = (data: AppDatabase) => {
     setCases(data.cases || []);
     setVessels(data.vessels || []);
     setPorts(data.ports || []);
+    setPortCalls(data.portCalls || []);
     setJobTypes(data.jobTypes || []);
     writeLocalBackup(data);
   };
@@ -122,6 +130,7 @@ export default function App() {
     cases,
     vessels,
     ports,
+    portCalls,
     jobTypes,
   });
 
@@ -174,6 +183,7 @@ export default function App() {
             cases: remote.cases || [],
             vessels: remote.vessels || [],
             ports: remote.ports || [],
+            portCalls: remote.portCalls || [],
             jobTypes: remote.jobTypes || [],
           };
           applyDatabaseToState(nextData);
@@ -227,6 +237,10 @@ export default function App() {
 
   const savePorts = (newPorts: Port[]) => {
     persistDatabase({ ...currentDatabase(), ports: newPorts });
+  };
+
+  const savePortCalls = (newPortCalls: PortCall[]) => {
+    persistDatabase({ ...currentDatabase(), portCalls: newPortCalls });
   };
 
   const saveJobTypes = (newJobTypes: string[]) => {
@@ -306,23 +320,22 @@ export default function App() {
   // Delete vessel and keep any linked cases as unassigned
   const handleDeleteVessel = (vesselId: string) => {
     const updatedVessels = vessels.filter(v => v.id !== vesselId);
+    const removedPortCallIds = portCalls.filter(pc => pc.vesselId === vesselId).map(pc => pc.id);
+    const updatedPortCalls = portCalls.filter(pc => pc.vesselId !== vesselId);
     const updatedCases = cases.map(c =>
-      c.vesselId === vesselId
-        ? { ...c, vesselId: '', lastUpdatedDate: new Date().toISOString() }
+      c.vesselId === vesselId || (c.portCallId && removedPortCallIds.includes(c.portCallId))
+        ? { ...c, vesselId: '', portCallId: undefined, lastUpdatedDate: new Date().toISOString() }
         : c
     );
-    persistDatabase({ ...currentDatabase(), vessels: updatedVessels, cases: updatedCases });
+    persistDatabase({ ...currentDatabase(), vessels: updatedVessels, portCalls: updatedPortCalls, cases: updatedCases });
   };
 
   // Create / update / archive port profiles
-  const handleAddPort = (name: string, country: string, eta?: string, etb?: string, ets?: string) => {
+  const handleAddPort = (name: string, country: string) => {
     const newPort: Port = {
       id: `p-${Date.now()}`,
       name,
       country,
-      eta: eta || '',
-      etb: etb || '',
-      ets: ets || '',
       archived: false,
     };
     const updatedPorts = [...ports, newPort];
@@ -342,12 +355,57 @@ export default function App() {
   // Delete port and keep any linked cases as unassigned
   const handleDeletePort = (portId: string) => {
     const updatedPorts = ports.filter(p => p.id !== portId);
+    const removedPortCallIds = portCalls.filter(pc => pc.portId === portId).map(pc => pc.id);
+    const updatedPortCalls = portCalls.filter(pc => pc.portId !== portId);
     const updatedCases = cases.map(c =>
-      c.portId === portId
-        ? { ...c, portId: '', lastUpdatedDate: new Date().toISOString() }
+      c.portId === portId || (c.portCallId && removedPortCallIds.includes(c.portCallId))
+        ? { ...c, portId: '', portCallId: undefined, lastUpdatedDate: new Date().toISOString() }
         : c
     );
-    persistDatabase({ ...currentDatabase(), ports: updatedPorts, cases: updatedCases });
+    persistDatabase({ ...currentDatabase(), ports: updatedPorts, portCalls: updatedPortCalls, cases: updatedCases });
+  };
+
+  // Create / update / delete planned vessel calls per port.
+  // Linked jobs automatically follow the ETB date of their related port call.
+  const handleAddPortCall = (newPortCallData: Omit<PortCall, 'id'>) => {
+    const newPortCall: PortCall = {
+      ...newPortCallData,
+      id: `pc-${Date.now()}`,
+      archived: false,
+    };
+    const updatedPortCalls = [...portCalls, newPortCall];
+    savePortCalls(updatedPortCalls);
+  };
+
+  const handleUpdatePortCall = (updatedPortCall: PortCall) => {
+    const updatedPortCalls = portCalls.map(pc => pc.id === updatedPortCall.id ? updatedPortCall : pc);
+
+    const updatedCases = cases.map(c => {
+      if (c.portCallId !== updatedPortCall.id) return c;
+      return {
+        ...c,
+        vesselId: updatedPortCall.vesselId,
+        portId: updatedPortCall.portId,
+        deadline: updatedPortCall.etb || c.deadline,
+        eta: updatedPortCall.eta || c.eta,
+        etb: updatedPortCall.etb || c.etb,
+        ets: updatedPortCall.ets || c.ets,
+        agent: updatedPortCall.agent || c.agent,
+        lastUpdatedDate: new Date().toISOString(),
+      };
+    });
+
+    persistDatabase({ ...currentDatabase(), portCalls: updatedPortCalls, cases: updatedCases });
+  };
+
+  const handleDeletePortCall = (portCallId: string) => {
+    const updatedPortCalls = portCalls.filter(pc => pc.id !== portCallId);
+    const updatedCases = cases.map(c =>
+      c.portCallId === portCallId
+        ? { ...c, portCallId: undefined, lastUpdatedDate: new Date().toISOString() }
+        : c
+    );
+    persistDatabase({ ...currentDatabase(), portCalls: updatedPortCalls, cases: updatedCases });
   };
 
   // Add Custom Job Type dropdown category
@@ -385,6 +443,7 @@ export default function App() {
       cases: [],
       vessels: [],
       ports: [],
+      portCalls: [],
       jobTypes: INITIAL_JOB_TYPES,
     });
     setSelectedCaseId(null);
@@ -392,8 +451,8 @@ export default function App() {
   };
 
   // Restore complete state from a JSON Backup File
-  const handleImportFullDatabase = (data: { cases: Case[]; vessels: Vessel[]; ports: Port[]; jobTypes: string[] }) => {
-    persistDatabase(data);
+  const handleImportFullDatabase = (data: { cases: Case[]; vessels: Vessel[]; ports: Port[]; portCalls?: PortCall[]; jobTypes: string[] }) => {
+    persistDatabase({ ...data, portCalls: data.portCalls || [] });
     setSelectedCaseId(null);
     setActiveTab('dashboard');
   };
@@ -476,11 +535,16 @@ export default function App() {
         return (
           <PortsView
             ports={ports}
+            vessels={vessels}
             cases={cases}
+            portCalls={portCalls}
             onAddPort={handleAddPort}
             onUpdatePort={handleUpdatePort}
             onArchivePort={handleArchivePort}
             onDeletePort={handleDeletePort}
+            onAddPortCall={handleAddPortCall}
+            onUpdatePortCall={handleUpdatePortCall}
+            onDeletePortCall={handleDeletePortCall}
             onSelectCase={handleSelectCase}
           />
         );
@@ -522,6 +586,7 @@ export default function App() {
             cases={cases}
             vessels={vessels}
             ports={ports}
+            portCalls={portCalls}
           />
         );
       default:
@@ -619,6 +684,7 @@ export default function App() {
         onAddCase={handleAddCase}
         vessels={vessels}
         ports={ports}
+        portCalls={portCalls}
         jobTypes={jobTypes}
         preselectedJobType={preselectedJobType}
       />

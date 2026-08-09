@@ -355,10 +355,6 @@ export default function CaseDetailView({
       alert('Target date / deadline is required.');
       return;
     }
-    if (!summaryPoNumber.trim()) {
-      alert('PO number is required.');
-      return;
-    }
     const updated: Case = {
       ...caseItem,
       subject: summarySubject.trim(),

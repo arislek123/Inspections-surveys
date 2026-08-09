@@ -6,17 +6,18 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Settings, Plus, Trash2, Download, Upload, RefreshCw, CheckCircle2, AlertTriangle, FileSpreadsheet } from 'lucide-react';
-import { Case, Vessel, Port } from '../types';
+import { Case, Vessel, Port, PortCall } from '../types';
 
 interface SettingsViewProps {
   jobTypes: string[];
   onAddJobType: (type: string) => void;
   onDeleteJobType: (type: string) => void;
-  onImportFullDatabase: (data: { cases: Case[]; vessels: Vessel[]; ports: Port[]; jobTypes: string[] }) => void;
+  onImportFullDatabase: (data: { cases: Case[]; vessels: Vessel[]; ports: Port[]; portCalls?: PortCall[]; jobTypes: string[] }) => void;
   onClearDatabase: () => void;
   cases: Case[];
   vessels: Vessel[];
   ports: Port[];
+  portCalls?: PortCall[];
 }
 
 export default function SettingsView({ 
@@ -27,7 +28,8 @@ export default function SettingsView({
   onClearDatabase,
   cases,
   vessels,
-  ports
+  ports,
+  portCalls = []
 }: SettingsViewProps) {
   
   const [newType, setNewType] = useState('');
@@ -164,6 +166,7 @@ export default function SettingsView({
       cases,
       vessels,
       ports,
+      portCalls,
       jobTypes,
       exportedAt: new Date().toISOString(),
       version: '1.0.0'
@@ -199,6 +202,7 @@ export default function SettingsView({
               cases: parsed.cases,
               vessels: parsed.vessels,
               ports: parsed.ports,
+              portCalls: parsed.portCalls || [],
               jobTypes: parsed.jobTypes
             });
           } else {
@@ -409,6 +413,7 @@ export default function SettingsView({
               <p>• Cases Logged: {cases.length}</p>
               <p>• Vessels Listed: {vessels.length}</p>
               <p>• Port Profiles: {ports.length}</p>
+              <p>• Planned Port Calls: {portCalls.length}</p>
             </div>
           </div>
 

@@ -38,6 +38,7 @@ export type CasePriority = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export interface Case {
   id: string;
+  portCallId?: string;
   vesselId: string;
   portId: string;
   jobType: string;
@@ -77,6 +78,17 @@ export interface Vessel {
   name: string;
   imo?: string;
   fleet?: string;
+  archived?: boolean;
+}
+
+export interface PortCall {
+  id: string;
+  vesselId: string;
+  portId: string;
+  eta?: string;
+  etb?: string;
+  ets?: string;
+  agent?: string;
   archived?: boolean;
 }
 

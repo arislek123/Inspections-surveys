@@ -31,11 +31,11 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
   const urgentCasesCount = cases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'cases', label: 'Cases & Jobs', icon: FileText, badge: openCasesCount },
     { id: 'vessels', label: 'Vessels', icon: Ship },
     { id: 'ports', label: 'Ports', icon: MapPin },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'jobs', label: 'Jobs', icon: Wrench },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];

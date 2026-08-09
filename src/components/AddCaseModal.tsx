@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronUp, Plus, ShieldAlert } from 'lucide-react';
-import { Case, Vessel, Port, CaseStatus, CasePriority } from '../types';
+import { Case, Vessel, Port, PortCall, CaseStatus, CasePriority } from '../types';
 
 interface AddCaseModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface AddCaseModalProps {
   onAddCase: (newCase: Omit<Case, 'id' | 'createdDate' | 'lastUpdatedDate' | 'emails' | 'comments'>) => void;
   vessels: Vessel[];
   ports: Port[];
+  portCalls: PortCall[];
   jobTypes: string[];
   preselectedJobType?: string;
 }
@@ -22,7 +23,8 @@ export default function AddCaseModal({
   onClose, 
   onAddCase, 
   vessels, 
-  ports, 
+  ports,
+  portCalls,
   jobTypes,
   preselectedJobType
 }: AddCaseModalProps) {
@@ -53,6 +55,8 @@ export default function AddCaseModal({
   const [nextAction, setNextAction] = useState('');
   const [deadline, setDeadline] = useState('');
   const [poNumber, setPoNumber] = useState('');
+  const [dateSource, setDateSource] = useState<'manual' | 'portCall'>('manual');
+  const [selectedPortCallId, setSelectedPortCallId] = useState('');
 
   // State for advanced fields
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -67,6 +71,26 @@ export default function AddCaseModal({
   const [notes, setNotes] = useState('');
 
   const [validationError, setValidationError] = useState('');
+
+  const getVesselName = (id: string) => vessels.find(v => v.id === id)?.name || 'Unknown Vessel';
+  const getPortName = (id: string) => ports.find(p => p.id === id)?.name || 'Unknown Port';
+  const availablePortCalls = portCalls
+    .filter(call => !call.archived && (!vesselId || call.vesselId === vesselId))
+    .sort((a, b) => (a.etb || a.eta || '').localeCompare(b.etb || b.eta || ''));
+
+  const applyPortCallToCase = (callId: string) => {
+    setSelectedPortCallId(callId);
+    const call = portCalls.find(pc => pc.id === callId);
+    if (!call) return;
+    setVesselId(call.vesselId);
+    setPortId(call.portId);
+    setDeadline(call.etb || '');
+    setEta(call.eta || '');
+    setEtb(call.etb || '');
+    setEts(call.ets || '');
+    if (call.agent) setAgent(call.agent);
+  };
+
 
   if (!isOpen) return null;
 
@@ -93,6 +117,17 @@ export default function AddCaseModal({
       setValidationError('Responsible person is required.');
       return;
     }
+    if (dateSource === 'portCall') {
+      const selectedCall = portCalls.find(pc => pc.id === selectedPortCallId);
+      if (!selectedCall) {
+        setValidationError('Please select a vessel port call or use manual target date.');
+        return;
+      }
+      if (!selectedCall.etb) {
+        setValidationError('Selected port call has no ETB. Add ETB in Ports or use manual target date.');
+        return;
+      }
+    }
     if (!deadline) {
       setValidationError('Target date / deadline is required.');
       return;
@@ -116,6 +151,7 @@ export default function AddCaseModal({
       nextAction: nextAction.trim(),
       deadline,
       poNumber: poNumber.trim(),
+      portCallId: dateSource === 'portCall' ? selectedPortCallId : undefined,
       
       // Advanced optional
       agent: agent.trim() || undefined,
@@ -148,6 +184,8 @@ export default function AddCaseModal({
     setNextAction('');
     setDeadline('');
     setPoNumber('');
+    setDateSource('manual');
+    setSelectedPortCallId('');
     setAgent('');
     setVendor('');
     setSurveyor('');
@@ -310,6 +348,47 @@ export default function AddCaseModal({
               </datalist>
             </div>
 
+            {/* Date Source */}
+            <div className="md:col-span-2">
+              <label className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Target Date Source</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setDateSource('manual'); setSelectedPortCallId(''); }}
+                  className={`border rounded-lg px-3 py-2 text-xs font-bold text-left ${dateSource === 'manual' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  Manual fixed date
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDateSource('portCall')}
+                  className={`border rounded-lg px-3 py-2 text-xs font-bold text-left ${dateSource === 'portCall' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                >
+                  From vessel port call ETB
+                </button>
+              </div>
+            </div>
+
+            {dateSource === 'portCall' && (
+              <div className="md:col-span-2">
+                <label htmlFor="modal-port-call" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Select Scheduled Port Call <span className="text-red-500">*</span></label>
+                <select
+                  id="modal-port-call"
+                  value={selectedPortCallId}
+                  onChange={(e) => applyPortCallToCase(e.target.value)}
+                  className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                >
+                  <option value="">Select vessel call</option>
+                  {availablePortCalls.map(call => (
+                    <option key={call.id} value={call.id}>
+                      {getVesselName(call.vesselId)} → {getPortName(call.portId)} | ETB: {call.etb || 'No ETB'} | ETA: {call.eta || '-'} | Agent: {call.agent || '-'}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">Linked jobs automatically follow the port call ETB if the port call is updated later.</p>
+              </div>
+            )}
+
             {/* Deadline / Target Date */}
             <div>
               <label htmlFor="modal-deadline" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Target Date / Deadline <span className="text-red-500">*</span></label>
@@ -317,8 +396,9 @@ export default function AddCaseModal({
                 type="date"
                 id="modal-deadline"
                 value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                onChange={(e) => { setDeadline(e.target.value); if (dateSource === 'portCall') setDateSource('manual'); }}
+                disabled={dateSource === 'portCall'}
+                className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all disabled:bg-slate-100 disabled:text-slate-500"
                 required
               />
             </div>
@@ -333,7 +413,6 @@ export default function AddCaseModal({
                 onChange={(e) => setPoNumber(e.target.value)}
                 placeholder="Optional, e.g. PO-7030-S260006"
                 className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
-                required
               />
             </div>
 
