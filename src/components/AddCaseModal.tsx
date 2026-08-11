@@ -84,7 +84,7 @@ export default function AddCaseModal({
     if (!call) return;
     setVesselId(call.vesselId);
     setPortId(call.portId);
-    setDeadline(call.etb || '');
+    setDeadline(call.etb || call.eta || '');
     setEta(call.eta || '');
     setEtb(call.etb || '');
     setEts(call.ets || '');
@@ -123,8 +123,8 @@ export default function AddCaseModal({
         setValidationError('Please select a vessel port call or use manual target date.');
         return;
       }
-      if (!selectedCall.etb) {
-        setValidationError('Selected port call has no ETB. Add ETB in Ports or use manual target date.');
+      if (!selectedCall.etb && !selectedCall.eta) {
+        setValidationError('Selected port call has no ETB or ETA. Add ETB/ETA in Ports or use manual target date.');
         return;
       }
     }
@@ -381,11 +381,11 @@ export default function AddCaseModal({
                   <option value="">Select vessel call</option>
                   {availablePortCalls.map(call => (
                     <option key={call.id} value={call.id}>
-                      {getVesselName(call.vesselId)} → {getPortName(call.portId)} | ETB: {call.etb || 'No ETB'} | ETA: {call.eta || '-'} | Agent: {call.agent || '-'}
+                      {getVesselName(call.vesselId)} → {getPortName(call.portId)} | Target: {call.etb || call.eta || 'No ETA/ETB'} | ETB: {call.etb || '-'} | ETA: {call.eta || '-'} | Agent: {call.agent || '-'}
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-500 mt-1">Linked jobs automatically follow the port call ETB if the port call is updated later.</p>
+                <p className="text-[11px] text-slate-500 mt-1">Linked jobs automatically use ETB when available; if ETB is empty, ETA is used.</p>
               </div>
             )}
 

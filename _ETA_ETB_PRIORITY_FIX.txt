@@ -1,0 +1,1 @@
+Port-call linked jobs now use ETB first. If ETB is empty, ETA is used. If both are empty, saving is blocked. If ETB is later added/updated, linked jobs move to ETB automatically.

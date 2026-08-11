@@ -389,7 +389,7 @@ export default function App() {
         ...c,
         vesselId: updatedPortCall.vesselId,
         portId: updatedPortCall.portId,
-        deadline: updatedPortCall.etb || c.deadline,
+        deadline: updatedPortCall.etb || updatedPortCall.eta || c.deadline,
         eta: updatedPortCall.eta || c.eta,
         etb: updatedPortCall.etb || c.etb,
         ets: updatedPortCall.ets || c.ets,
