@@ -11,6 +11,7 @@ import { ShieldCheck, LogOut, Loader2 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import CasesListView from './components/CasesListView';
+import PrepareView from './components/PrepareView';
 import CaseDetailView from './components/CaseDetailView';
 import AddCaseModal from './components/AddCaseModal';
 import VesselsView from './components/VesselsView';
@@ -518,6 +519,16 @@ export default function App() {
             setActiveTab={setActiveTab}
           />
         );
+      case 'prepare':
+        return (
+          <PrepareView
+            cases={cases}
+            vessels={vessels}
+            ports={ports}
+            onUpdateCase={handleUpdateCase}
+            onSelectCase={handleSelectCase}
+          />
+        );
       case 'vessels':
         return (
           <VesselsView
@@ -645,9 +656,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          if (tab !== 'cases') {
-            setSelectedCaseId(null);
-          }
+          setSelectedCaseId(null);
         }}
         cases={cases}
         onQuickAdd={() => setIsAddCaseOpen(true)}

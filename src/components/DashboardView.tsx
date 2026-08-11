@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   FileText, 
   AlertOctagon, 
@@ -35,20 +35,35 @@ export default function DashboardView({
   onSelectCase, 
   setActiveTab 
 }: DashboardViewProps) {
+  const [timeScope, setTimeScope] = useState<'relevant' | 'all'>('relevant');
+
+  const isInRelevantWindow = (c: Case) => {
+    if (timeScope === 'all') return true;
+    const dateValue = c.deadline || c.etb || c.eta || c.lastUpdatedDate;
+    if (!dateValue) return true;
+    const date = new Date(dateValue.includes('T') ? dateValue : `${dateValue}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const earliest = new Date(today);
+    earliest.setDate(today.getDate() - 30);
+    return date.getTime() >= earliest.getTime();
+  };
+  const scopedCases = cases.filter(isInRelevantWindow);
+  const visibleOperationalCases = scopedCases.filter(c => c.status !== 'Finished' && c.status !== 'Postponed');
   
   // Calculate stats
-  const totalCases = cases.length;
-  const openCases = cases.filter(c => c.status !== 'Finished').length;
-  const urgentCases = cases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
-  const finishedCases = cases.filter(c => c.status === 'Finished').length;
-  const postponedCases = cases.filter(c => c.status === 'Postponed').length;
-  const reopenedCases = cases.filter(c => c.status === 'Postponed but Reopened').length;
-  const inProgressCases = cases.filter(c => c.status === 'In Progress').length;
-  const awaitingReplyCases = cases.filter(c => c.status === 'Awaiting Reply').length;
+  const totalCases = scopedCases.length;
+  const openCases = visibleOperationalCases.length;
+  const urgentCases = visibleOperationalCases.filter(c => c.priority === 'Critical').length;
+  const finishedCases = scopedCases.filter(c => c.status === 'Finished').length;
+  const postponedCases = scopedCases.filter(c => c.status === 'Postponed').length;
+  const reopenedCases = scopedCases.filter(c => c.status === 'Postponed but Reopened').length;
+  const inProgressCases = visibleOperationalCases.filter(c => c.status === 'In Progress').length;
+  const awaitingReplyCases = visibleOperationalCases.filter(c => c.status === 'Awaiting Reply').length;
 
   // Cases per Vessel
   const vesselStats = vessels.map(v => {
-    const vesselCases = cases.filter(c => c.vesselId === v.id);
+    const vesselCases = visibleOperationalCases.filter(c => c.vesselId === v.id);
     const totalCount = vesselCases.length;
     const openCount = vesselCases.filter(c => c.status !== 'Finished').length;
     const urgentCount = vesselCases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
@@ -62,7 +77,7 @@ export default function DashboardView({
 
   // Cases per Port
   const portStats = ports.map(p => {
-    const portCases = cases.filter(c => c.portId === p.id);
+    const portCases = visibleOperationalCases.filter(c => c.portId === p.id);
     const totalCount = portCases.length;
     const openCount = portCases.filter(c => c.status !== 'Finished').length;
     return {
@@ -74,7 +89,7 @@ export default function DashboardView({
 
   // Cases per Job Type
   const jobTypeCounts: { [key: string]: number } = {};
-  cases.forEach(c => {
+  visibleOperationalCases.forEach(c => {
     jobTypeCounts[c.jobType] = (jobTypeCounts[c.jobType] || 0) + 1;
   });
   const jobTypeStats = Object.keys(jobTypeCounts).map(type => ({
@@ -83,7 +98,7 @@ export default function DashboardView({
   })).sort((a, b) => b.count - a.count);
 
   // Recent operational updates (sorted by last updated date)
-  const recentCases = [...cases]
+  const recentCases = [...visibleOperationalCases]
     .sort((a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime())
     .slice(0, 4);
 
@@ -99,9 +114,16 @@ export default function DashboardView({
           <h2 className="text-2xl font-sans font-bold text-slate-900 tracking-tight">Technical Operations Dashboard</h2>
           <p className="text-sm text-slate-500 mt-1">Real-time status of ship inspections, surveys, and technical repair cases.</p>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-sans font-medium text-slate-600">Local Time (UTC-7)</p>
-          <p className="text-sm font-mono font-bold text-slate-800">2026-07-05 05:29</p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Period:</span>
+          <select
+            value={timeScope}
+            onChange={(e) => setTimeScope(e.target.value as 'relevant' | 'all')}
+            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 font-semibold focus:outline-none focus:ring-1 focus:ring-sky-500"
+          >
+            <option value="relevant">Relevant: future + last 30 days</option>
+            <option value="all">All past / current / future</option>
+          </select>
         </div>
       </div>
 

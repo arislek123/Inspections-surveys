@@ -34,7 +34,7 @@ export default function VesselsView({
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards');
   const [showArchived, setShowArchived] = useState(false);
 
   const visibleVessels = useMemo(
@@ -53,8 +53,8 @@ export default function VesselsView({
   const getVesselMetrics = (vesselId: string) => {
     const vesselCases = cases.filter(c => c.vesselId === vesselId);
     const openCases = vesselCases.filter(c => c.status !== 'Finished' && c.status !== 'Postponed');
-    const criticalCases = vesselCases.filter(c => c.priority === 'Critical' || c.status === 'Urgent');
-    const sortedByUpdate = [...vesselCases].sort(
+    const criticalCases = openCases.filter(c => c.priority === 'Critical');
+    const sortedByUpdate = [...openCases].sort(
       (a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime()
     );
     const sortedByDate = [...openCases].sort((a, b) => {
@@ -310,7 +310,7 @@ export default function VesselsView({
                   <div><span className="text-2xl font-bold text-red-600 block">{metrics.criticalCases.length}</span><span className="text-[10px] font-bold text-slate-400 uppercase">Critical</span></div>
                 </div>
                 <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {metrics.vesselCases
+                  {metrics.openCases
                     .sort((a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime())
                     .map((c) => (
                     <button key={c.id} type="button" onClick={() => onSelectCase(c.id)} className="w-full p-2 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-100 text-left">
@@ -321,7 +321,7 @@ export default function VesselsView({
                       <p className="text-[11px] font-mono text-slate-400 mt-0.5">{c.id} • {c.status} • PO: {c.poNumber || 'MISSING'}</p>
                     </button>
                   ))}
-                  {metrics.vesselCases.length === 0 && <p className="text-sm text-slate-400 py-3 italic text-center">No surveys or issues logged.</p>}
+                  {metrics.openCases.length === 0 && <p className="text-sm text-slate-400 py-3 italic text-center">No active jobs logged.</p>}
                 </div>
               </div>
             );

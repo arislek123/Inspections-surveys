@@ -8,6 +8,7 @@ import {
   Anchor, 
   LayoutDashboard, 
   FileText, 
+  ClipboardCheck,
   Ship, 
   MapPin, 
   Calendar, 
@@ -33,6 +34,7 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
   const menuItems = [
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'cases', label: 'Cases & Jobs', icon: FileText, badge: openCasesCount },
+    { id: 'prepare', label: 'Prepare', icon: ClipboardCheck },
     { id: 'vessels', label: 'Vessels', icon: Ship },
     { id: 'ports', label: 'Ports', icon: MapPin },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

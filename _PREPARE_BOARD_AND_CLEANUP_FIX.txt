@@ -1,0 +1,11 @@
+Fix includes:
+- Removed example wording/placeholders from the mail correspondence form.
+- Added Prepare board below Cases & Jobs for open PO-issued jobs.
+- Added preparation/agent/vessel email checkboxes stored per case.
+- Vessel page defaults to card view.
+- Cases & Jobs nav click now returns to the case list.
+- Port edit/call edit scrolls to the form automatically.
+- Ports show only relevant port calls by default: future + last 30 days, with option to show all.
+- Ports linked jobs hide Finished and Postponed jobs.
+- Dashboard uses the same relevant period filter and hides Finished/Postponed from operational lists.
+- PO remains optional; target date remains mandatory.

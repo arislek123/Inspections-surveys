@@ -661,7 +661,7 @@ export default function CaseDetailView({
                       value={summaryAttachments}
                       onChange={(e) => setSummaryAttachments(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono mt-1 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      placeholder="e.g. quote_89.pdf"
+                      placeholder=""
                     />
                   </div>
                 </div>
@@ -1137,13 +1137,13 @@ export default function CaseDetailView({
 
                   {/* Mail reference number */}
                   <div>
-                    <label htmlFor="mail-ref-input" className="block text-xs font-sans font-bold text-slate-500 uppercase mb-1">Mail Ref Code (e.g. 1a, 1b)</label>
+                    <label htmlFor="mail-ref-input" className="block text-xs font-sans font-bold text-slate-500 uppercase mb-1">Mail Ref Code</label>
                     <input
                       type="text"
                       id="mail-ref-input"
                       value={mailRef}
                       onChange={(e) => setMailRef(e.target.value)}
-                      placeholder="e.g. 3a"
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
                     />
@@ -1169,7 +1169,7 @@ export default function CaseDetailView({
                       id="mail-sender"
                       value={mailSender}
                       onChange={(e) => setMailSender(e.target.value)}
-                      placeholder="from@domain.com"
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
                     />
@@ -1183,7 +1183,7 @@ export default function CaseDetailView({
                       id="mail-recipient"
                       value={mailRecipient}
                       onChange={(e) => setMailRecipient(e.target.value)}
-                      placeholder="to@domain.com"
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
                     />
@@ -1197,7 +1197,7 @@ export default function CaseDetailView({
                       id="mail-attachments"
                       value={mailAttachments}
                       onChange={(e) => setMailAttachments(e.target.value)}
-                      placeholder="e.g. quote_89.pdf"
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500"
                     />
                   </div>
@@ -1210,7 +1210,7 @@ export default function CaseDetailView({
                       id="mail-subject"
                       value={mailSubject}
                       onChange={(e) => setMailSubject(e.target.value)}
-                      placeholder="Re: Vessel BWTS Check"
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
                     />
@@ -1224,7 +1224,7 @@ export default function CaseDetailView({
                       id="mail-summary"
                       value={mailSummary}
                       onChange={(e) => setMailSummary(e.target.value)}
-                      placeholder="e.g. Agent confirmed boarding pass clearance issued for surveyor."
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
                     />
@@ -1238,7 +1238,7 @@ export default function CaseDetailView({
                       rows={3}
                       value={mailContent}
                       onChange={(e) => setMailContent(e.target.value)}
-                      placeholder="Paste the full email contents here for complete audit trails..."
+                      placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-sans focus:outline-none focus:ring-1 focus:ring-sky-500"
                     />
                   </div>

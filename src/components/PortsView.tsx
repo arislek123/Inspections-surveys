@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { MapPin, Plus, Trash2, Edit3, Archive, RotateCcw, Eye, Ship, CalendarDays, UserRound } from 'lucide-react';
+import { MapPin, Plus, Trash2, Edit3, Archive, RotateCcw, Eye, Ship, CalendarDays } from 'lucide-react';
 import { Port, Case, Vessel, PortCall } from '../types';
 
 interface PortsViewProps {
@@ -47,6 +47,7 @@ export default function PortsView({
   const [editingCallId, setEditingCallId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [callScope, setCallScope] = useState<'relevant' | 'all'>('relevant');
 
   const activeVessels = vessels.filter(v => !v.archived);
   const activePorts = ports.filter(p => !p.archived);
@@ -58,6 +59,21 @@ export default function PortsView({
 
   const getVesselName = (vesselId: string) => vessels.find(v => v.id === vesselId)?.name || 'Unknown Vessel';
   const getPortName = (portId: string) => ports.find(p => p.id === portId)?.name || 'Unknown Port';
+  const isOpenJob = (c: Case) => c.status !== 'Finished' && c.status !== 'Postponed';
+  const scrollToForm = (targetId: string) => {
+    window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+  const isRelevantPortCall = (call: PortCall) => {
+    if (callScope === 'all') return true;
+    const dateValue = call.etb || call.eta || call.ets;
+    if (!dateValue) return true;
+    const date = new Date(`${dateValue}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const earliest = new Date(today);
+    earliest.setDate(today.getDate() - 30);
+    return date.getTime() >= earliest.getTime();
+  };
 
   const resetPortForm = () => {
     setPortForm(emptyPortForm);
@@ -77,11 +93,12 @@ export default function PortsView({
 
   const getPortMetrics = (portId: string) => {
     const portCases = cases.filter(c => c.portId === portId);
-    const openCases = portCases.filter(c => c.status !== 'Finished' && c.status !== 'Postponed');
-    const criticalCases = portCases.filter(c => c.priority === 'Critical');
-    const latestCase = [...portCases].sort((a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime())[0];
-    const calls = portCalls.filter(pc => pc.portId === portId && (showArchived || !pc.archived))
-      .sort((a, b) => (a.etb || a.eta || '').localeCompare(b.etb || b.eta || ''));
+    const openCases = portCases.filter(isOpenJob);
+    const criticalCases = openCases.filter(c => c.priority === 'Critical');
+    const latestCase = [...openCases].sort((a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime())[0];
+    const calls = portCalls
+      .filter(pc => pc.portId === portId && (showArchived || !pc.archived) && isRelevantPortCall(pc))
+      .sort((a, b) => (a.etb || a.eta || a.ets || '').localeCompare(b.etb || b.eta || b.ets || ''));
     return { portCases, openCases, criticalCases, latestCase, calls };
   };
 
@@ -162,6 +179,7 @@ export default function PortsView({
     setPortForm({ name: port.name || '', country: port.country || '' });
     setShowAddPortForm(true);
     setShowAddCallForm(false);
+    scrollToForm('port-edit-form');
   };
 
   const handleStartEditCall = (call: PortCall) => {
@@ -176,6 +194,7 @@ export default function PortsView({
     });
     setShowAddCallForm(true);
     setShowAddPortForm(false);
+    scrollToForm('port-call-edit-form');
   };
 
   const handleDeletePort = (portId: string, portName: string, linkedCasesCount: number, linkedCallsCount: number) => {
@@ -204,6 +223,15 @@ export default function PortsView({
           <p className="text-sm text-slate-500 mt-1">Manage ports and planned vessel calls. Linked jobs auto-update from port-call ETB.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={callScope}
+            onChange={(e) => setCallScope(e.target.value as 'relevant' | 'all')}
+            className="px-3 py-1.5 text-sm bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
+            title="Port call time range"
+          >
+            <option value="relevant">Relevant calls: future + last 30 days</option>
+            <option value="all">All past / current / future calls</option>
+          </select>
           <button
             type="button"
             onClick={() => setShowArchived(!showArchived)}
@@ -236,7 +264,7 @@ export default function PortsView({
       )}
 
       {showAddPortForm && (
-        <form onSubmit={handlePortSubmit} className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 mb-6 max-w-3xl animate-fadeIn">
+        <form id="port-edit-form" onSubmit={handlePortSubmit} className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 mb-6 max-w-3xl animate-fadeIn">
           <h3 className="text-sm font-sans font-bold text-slate-800 uppercase tracking-wider mb-4">{editingPortId ? 'Edit Port' : 'Register New Port'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -256,7 +284,7 @@ export default function PortsView({
       )}
 
       {showAddCallForm && (
-        <form onSubmit={handleCallSubmit} className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 mb-6 max-w-6xl animate-fadeIn">
+        <form id="port-call-edit-form" onSubmit={handleCallSubmit} className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 mb-6 max-w-6xl animate-fadeIn">
           <h3 className="text-sm font-sans font-bold text-slate-800 uppercase tracking-wider mb-4">{editingCallId ? 'Edit Vessel Port Call' : 'Add Vessel Port Call'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
             <div>
@@ -347,7 +375,7 @@ export default function PortsView({
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
                         {metrics.calls.map(call => {
-                          const linkedJobs = cases.filter(c => c.portCallId === call.id);
+                          const linkedJobs = cases.filter(c => c.portCallId === call.id && isOpenJob(c));
                           return (
                             <tr key={call.id} className="hover:bg-slate-50">
                               <td className="px-4 py-2 font-bold text-slate-900">{getVesselName(call.vesselId)}</td>
@@ -378,7 +406,7 @@ export default function PortsView({
                     </table>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic py-2">No planned vessel calls registered for this port.</p>
+                  <p className="text-xs text-slate-400 italic py-2">No relevant vessel calls registered for this port in the selected range.</p>
                 )}
               </div>
             </div>

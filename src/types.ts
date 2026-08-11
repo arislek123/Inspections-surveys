@@ -50,6 +50,9 @@ export interface Case {
   lastUpdatedDate: string;
   deadline?: string;
   poNumber?: string;
+  prepEmailDone?: boolean;
+  agentEmailDone?: boolean;
+  vesselEmailDone?: boolean;
   details: string;
   
   // Next Action Section
