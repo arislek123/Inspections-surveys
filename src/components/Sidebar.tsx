@@ -15,7 +15,8 @@ import {
   Settings, 
   PlusCircle,
   AlertTriangle,
-  Wrench
+  Wrench,
+  AlarmClock
 } from 'lucide-react';
 import { Case } from '../types';
 
@@ -25,9 +26,10 @@ interface SidebarProps {
   cases: Case[];
   onQuickAdd: () => void;
   userEmail?: string;
+  alarmCount?: number;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, userEmail }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, userEmail, alarmCount = 0 }: SidebarProps) {
   const openCasesCount = cases.filter(c => c.status !== 'Finished').length;
   const urgentCasesCount = cases.filter(c => c.priority === 'Critical' || c.status === 'Urgent').length;
 
@@ -39,6 +41,7 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
     { id: 'ports', label: 'Ports', icon: MapPin },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'jobs', label: 'Jobs', icon: Wrench },
+    { id: 'alarms', label: 'Alarms', icon: AlarmClock, badge: alarmCount },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -87,7 +90,7 @@ export default function Sidebar({ activeTab, setActiveTab, cases, onQuickAdd, us
               </div>
               {item.badge !== undefined && item.badge > 0 && (
                 <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold ${
-                  item.id === 'cases' && urgentCasesCount > 0
+                  (item.id === 'cases' && urgentCasesCount > 0) || item.id === 'alarms'
                     ? 'bg-red-500/25 text-red-400 border border-red-500/30'
                     : 'bg-slate-800 text-slate-300 border border-slate-700'
                 }`}>

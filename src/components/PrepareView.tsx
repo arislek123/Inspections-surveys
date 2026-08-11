@@ -107,7 +107,7 @@ export default function PrepareView({ cases, vessels, ports, onUpdateCase, onSel
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-slate-900 truncate max-w-[320px]">{c.subject}</p>
+                      <p className="font-semibold text-slate-900 truncate max-w-[320px]" title={c.subject}>{c.subject}</p>
                       <p className="text-xs text-slate-400 font-mono mt-0.5">{c.jobType} · {c.id}</p>
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-700">{c.deadline || '-'}</td>

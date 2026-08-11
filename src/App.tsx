@@ -6,12 +6,13 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
-import { ShieldCheck, LogOut, Loader2 } from 'lucide-react';
+import { ShieldCheck, LogOut, Loader2, AlarmClock, X, Eye } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import CasesListView from './components/CasesListView';
 import PrepareView from './components/PrepareView';
+import AlarmView, { getPreparationAlarms } from './components/AlarmView';
 import CaseDetailView from './components/CaseDetailView';
 import AddCaseModal from './components/AddCaseModal';
 import VesselsView from './components/VesselsView';
@@ -103,6 +104,7 @@ export default function App() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [isAddCaseOpen, setIsAddCaseOpen] = useState<boolean>(false);
   const [preselectedJobType, setPreselectedJobType] = useState<string | undefined>(undefined);
+  const [alarmPopupDismissed, setAlarmPopupDismissed] = useState(false);
 
   // Firebase/Auth states
   const [user, setUser] = useState<User | null>(null);
@@ -472,6 +474,9 @@ export default function App() {
     saveCases(updatedCases);
   };
 
+  const preparationAlarms = getPreparationAlarms(cases);
+  const showAlarmPopup = preparationAlarms.length > 0 && !alarmPopupDismissed;
+
   // 5. View Switcher Logic
   const renderActiveView = () => {
     if (activeTab === 'cases') {
@@ -586,6 +591,15 @@ export default function App() {
             onDeleteCase={handleDeleteCase}
           />
         );
+      case 'alarms':
+        return (
+          <AlarmView
+            cases={cases}
+            vessels={vessels}
+            ports={ports}
+            onSelectCase={handleSelectCase}
+          />
+        );
       case 'settings':
         return (
           <SettingsView
@@ -661,6 +675,7 @@ export default function App() {
         cases={cases}
         onQuickAdd={() => setIsAddCaseOpen(true)}
         userEmail={user.email || undefined}
+        alarmCount={preparationAlarms.length}
       />
 
       <main className="flex-1 flex flex-col overflow-hidden relative" id="viewport-main-content">
@@ -683,6 +698,49 @@ export default function App() {
         </div>
         {renderActiveView()}
       </main>
+
+
+      {showAlarmPopup && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-red-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-red-100 bg-red-50 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center"><AlarmClock className="h-5 w-5" /></div>
+                <div>
+                  <h3 className="text-base font-bold text-red-900">Preparation alarm</h3>
+                  <p className="text-sm text-red-700">Unchecked preparation / agent / vessel e-mails due within 7 days.</p>
+                </div>
+              </div>
+              <button onClick={() => setAlarmPopupDismissed(true)} className="p-1.5 rounded-lg hover:bg-red-100 text-red-700"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
+              {preparationAlarms.slice(0, 10).map((alarm, idx) => {
+                const vessel = vessels.find(v => v.id === alarm.caseItem.vesselId)?.name || 'Unknown Vessel';
+                const port = ports.find(p => p.id === alarm.caseItem.portId)?.name || 'Unknown Port';
+                return (
+                  <div key={`${alarm.caseItem.id}-${alarm.type}-${idx}`} className="px-5 py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate" title={alarm.caseItem.subject}>{vessel} · {alarm.caseItem.subject}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{port} · {alarm.type} · Target: {alarm.caseItem.deadline || '-'}</p>
+                    </div>
+                    <button
+                      onClick={() => { setAlarmPopupDismissed(true); handleSelectCase(alarm.caseItem.id); }}
+                      className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 text-xs font-bold"
+                    >
+                      <Eye className="h-4 w-4" /> Open
+                    </button>
+                  </div>
+                );
+              })}
+              {preparationAlarms.length > 10 && <div className="px-5 py-3 text-xs text-slate-500">+{preparationAlarms.length - 10} more alarms in Alarms page.</div>}
+            </div>
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button onClick={() => setAlarmPopupDismissed(true)} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50">Dismiss</button>
+              <button onClick={() => { setAlarmPopupDismissed(true); setActiveTab('alarms'); setSelectedCaseId(null); }} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700">Open alarms</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AddCaseModal
         isOpen={isAddCaseOpen}

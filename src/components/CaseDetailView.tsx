@@ -85,6 +85,17 @@ export default function CaseDetailView({
   const [mailFollowUp, setMailFollowUp] = useState(false);
   const [mailImportant, setMailImportant] = useState(false);
 
+  const applyMailDirection = (direction: 'Incoming' | 'Outgoing') => {
+    setMailDirection(direction);
+    if (direction === 'Incoming') {
+      setMailSender('');
+      setMailRecipient('technical@trustbulkers.gr');
+    } else {
+      setMailSender('technical@trustbulkers.gr');
+      setMailRecipient('');
+    }
+  };
+
   // Edit core descriptions state
   const [isEditingBackground, setIsEditingBackground] = useState(false);
   const [backgroundDetails, setBackgroundDetails] = useState(caseItem.details);
@@ -300,9 +311,9 @@ export default function CaseDetailView({
       date: mailDate ? new Date(mailDate).toISOString() : new Date().toISOString(),
       summary: mailSummary.trim(),
       content: mailContent.trim(),
-      attachments: mailAttachments.trim() || undefined,
-      followUpRequired: mailFollowUp,
-      isImportant: mailImportant
+      attachments: undefined,
+      followUpRequired: false,
+      isImportant: false
     };
 
     const updatedEmails = editingEmailId
@@ -1127,7 +1138,7 @@ export default function CaseDetailView({
                     <select
                       id="mail-direction"
                       value={mailDirection}
-                      onChange={(e) => setMailDirection(e.target.value as 'Incoming' | 'Outgoing')}
+                      onChange={(e) => applyMailDirection(e.target.value as 'Incoming' | 'Outgoing')}
                       className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                     >
                       <option value="Outgoing">Outgoing (We Sent)</option>
@@ -1146,18 +1157,6 @@ export default function CaseDetailView({
                       placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
-                    />
-                  </div>
-
-                  {/* Date */}
-                  <div>
-                    <label htmlFor="mail-date" className="block text-xs font-sans font-bold text-slate-500 uppercase mb-1">Date Logged</label>
-                    <input
-                      id="mail-date"
-                      type="datetime-local"
-                      value={mailDate}
-                      onChange={(e) => setMailDate(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                     />
                   </div>
 
@@ -1186,19 +1185,6 @@ export default function CaseDetailView({
                       placeholder=""
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
                       required
-                    />
-                  </div>
-
-                  {/* Attachments */}
-                  <div className="md:col-span-1">
-                    <label htmlFor="mail-attachments" className="block text-xs font-sans font-bold text-slate-500 uppercase mb-1">File Attachments (Ref)</label>
-                    <input
-                      type="text"
-                      id="mail-attachments"
-                      value={mailAttachments}
-                      onChange={(e) => setMailAttachments(e.target.value)}
-                      placeholder=""
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-sky-500"
                     />
                   </div>
 
@@ -1242,29 +1228,6 @@ export default function CaseDetailView({
                       className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-sans focus:outline-none focus:ring-1 focus:ring-sky-500"
                     />
                   </div>
-                </div>
-
-                {/* Flags */}
-                <div className="flex items-center space-x-6 pt-1 text-sm font-medium">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={mailFollowUp}
-                      onChange={(e) => setMailFollowUp(e.target.checked)}
-                      className="h-4 w-4 border-slate-200 rounded focus:ring-1 focus:ring-sky-500"
-                    />
-                    <span className="text-amber-700">Follow-up Required (Awaiting Reply)</span>
-                  </label>
-
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={mailImportant}
-                      onChange={(e) => setMailImportant(e.target.checked)}
-                      className="h-4 w-4 border-slate-200 rounded focus:ring-1 focus:ring-sky-500"
-                    />
-                    <span className="text-red-700">Flag as Important</span>
-                  </label>
                 </div>
 
                 {/* Form buttons */}
