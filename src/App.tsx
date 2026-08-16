@@ -701,43 +701,41 @@ export default function App() {
 
 
       {showAlarmPopup && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-red-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-red-100 bg-red-50 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center"><AlarmClock className="h-5 w-5" /></div>
-                <div>
-                  <h3 className="text-base font-bold text-red-900">Preparation alarm</h3>
-                  <p className="text-sm text-red-700">Unchecked preparation / agent / vessel e-mails due within 7 days.</p>
-                </div>
+        <div className="fixed bottom-5 left-5 z-[70] w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl bg-white shadow-2xl border border-red-100 overflow-hidden">
+          <div className="px-4 py-3 border-b border-red-100 bg-red-50 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-red-100 text-red-700 flex items-center justify-center shrink-0"><AlarmClock className="h-4 w-4" /></div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-red-900">Preparation alarm</h3>
+                <p className="text-xs text-red-700 mt-0.5">Pending e-mails for PO-issued jobs within 7 days.</p>
               </div>
-              <button onClick={() => setAlarmPopupDismissed(true)} className="p-1.5 rounded-lg hover:bg-red-100 text-red-700"><X className="h-5 w-5" /></button>
             </div>
-            <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
-              {preparationAlarms.slice(0, 10).map((alarm, idx) => {
-                const vessel = vessels.find(v => v.id === alarm.caseItem.vesselId)?.name || 'Unknown Vessel';
-                const port = ports.find(p => p.id === alarm.caseItem.portId)?.name || 'Unknown Port';
-                return (
-                  <div key={`${alarm.caseItem.id}-${alarm.type}-${idx}`} className="px-5 py-3 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate" title={alarm.caseItem.subject}>{vessel} · {alarm.caseItem.subject}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{port} · {alarm.type} · Target: {alarm.caseItem.deadline || '-'}</p>
-                    </div>
-                    <button
-                      onClick={() => { setAlarmPopupDismissed(true); handleSelectCase(alarm.caseItem.id); }}
-                      className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 text-xs font-bold"
-                    >
-                      <Eye className="h-4 w-4" /> Open
-                    </button>
+            <button onClick={() => setAlarmPopupDismissed(true)} className="p-1 rounded-lg hover:bg-red-100 text-red-700"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-100">
+            {preparationAlarms.slice(0, 3).map((alarm, idx) => {
+              const vessel = vessels.find(v => v.id === alarm.caseItem.vesselId)?.name || 'Unknown Vessel';
+              const port = ports.find(p => p.id === alarm.caseItem.portId)?.name || 'Unknown Port';
+              return (
+                <div key={`${alarm.caseItem.id}-${alarm.type}-${idx}`} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 truncate" title={alarm.caseItem.subject}>{vessel} · {alarm.caseItem.subject}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">{port} · {alarm.type}</p>
                   </div>
-                );
-              })}
-              {preparationAlarms.length > 10 && <div className="px-5 py-3 text-xs text-slate-500">+{preparationAlarms.length - 10} more alarms in Alarms page.</div>}
-            </div>
-            <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
-              <button onClick={() => setAlarmPopupDismissed(true)} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50">Dismiss</button>
-              <button onClick={() => { setAlarmPopupDismissed(true); setActiveTab('alarms'); setSelectedCaseId(null); }} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700">Open alarms</button>
-            </div>
+                  <button
+                    onClick={() => { setAlarmPopupDismissed(true); handleSelectCase(alarm.caseItem.id); }}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white px-2.5 py-1.5 text-[11px] font-bold"
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Open
+                  </button>
+                </div>
+              );
+            })}
+            {preparationAlarms.length > 3 && <div className="px-4 py-2 text-[11px] text-slate-500">+{preparationAlarms.length - 3} more alarms in Alarms page.</div>}
+          </div>
+          <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+            <button onClick={() => setAlarmPopupDismissed(true)} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50">Dismiss</button>
+            <button onClick={() => { setAlarmPopupDismissed(true); setActiveTab('alarms'); setSelectedCaseId(null); }} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700">Open alarms</button>
           </div>
         </div>
       )}

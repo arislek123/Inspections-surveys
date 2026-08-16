@@ -69,15 +69,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
     return d;
   }, []);
 
-  const firstDeadlineDate = useMemo(() => {
-    const nextCase = cases
-      .filter(c => c.deadline)
-      .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())[0];
-
-    return toDateOnly(nextCase?.deadline) || today;
-  }, [cases, today]);
-
-  const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date(firstDeadlineDate.getFullYear(), firstDeadlineDate.getMonth(), 1));
+  const [visibleMonth, setVisibleMonth] = useState<Date>(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string>(() => toISODate(today));
 
   const getVesselName = (id: string) => vessels.find(v => v.id === id)?.name || 'Unknown Vessel';

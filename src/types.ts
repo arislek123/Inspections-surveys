@@ -53,6 +53,9 @@ export interface Case {
   prepEmailDone?: boolean;
   agentEmailDone?: boolean;
   vesselEmailDone?: boolean;
+  prepEmailNote?: string;
+  agentEmailNote?: string;
+  vesselEmailNote?: string;
   details: string;
   
   // Next Action Section

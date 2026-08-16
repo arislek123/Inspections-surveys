@@ -1,0 +1,5 @@
+Real Calendar now opens on the browser's current month/day, not on the earliest deadline month.
+Preparation Board e-mail checks now open a small optional note popup when checked.
+Closing the popup means no note.
+Saved notes are visible by hovering the note icon and can be edited with the pencil button.
+Alarm popup remains small at bottom-left and alarms are only for open PO-issued jobs.

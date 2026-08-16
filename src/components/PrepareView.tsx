@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo } from 'react';
-import { CheckSquare, Mail, Ship, MapPin, Eye, ClipboardCheck } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckSquare, Mail, Ship, MapPin, Eye, ClipboardCheck, StickyNote, Edit3, X } from 'lucide-react';
 import { Case, Vessel, Port } from '../types';
 
 interface PrepareViewProps {
@@ -15,7 +15,26 @@ interface PrepareViewProps {
   onSelectCase: (caseId: string) => void;
 }
 
+type EmailDoneField = 'prepEmailDone' | 'agentEmailDone' | 'vesselEmailDone';
+type EmailNoteField = 'prepEmailNote' | 'agentEmailNote' | 'vesselEmailNote';
+
+const NOTE_FIELD_BY_DONE_FIELD: Record<EmailDoneField, EmailNoteField> = {
+  prepEmailDone: 'prepEmailNote',
+  agentEmailDone: 'agentEmailNote',
+  vesselEmailDone: 'vesselEmailNote',
+};
+
+interface NoteEditorState {
+  caseItem: Case;
+  doneField: EmailDoneField;
+  noteField: EmailNoteField;
+  label: string;
+  value: string;
+}
+
 export default function PrepareView({ cases, vessels, ports, onUpdateCase, onSelectCase }: PrepareViewProps) {
+  const [noteEditor, setNoteEditor] = useState<NoteEditorState | null>(null);
+
   const getVesselName = (id: string) => vessels.find(v => v.id === id)?.name || 'Unknown Vessel';
   const getPortName = (id: string) => ports.find(p => p.id === id)?.name || 'Unknown Port';
 
@@ -29,32 +48,96 @@ export default function PrepareView({ cases, vessels, ports, onUpdateCase, onSel
       });
   }, [cases]);
 
-  const toggle = (caseItem: Case, field: 'prepEmailDone' | 'agentEmailDone' | 'vesselEmailDone') => {
-    onUpdateCase({
-      ...caseItem,
-      [field]: !caseItem[field],
-      lastUpdatedDate: new Date().toISOString(),
+  const openNoteEditor = (caseItem: Case, doneField: EmailDoneField, label: string) => {
+    const noteField = NOTE_FIELD_BY_DONE_FIELD[doneField];
+    setNoteEditor({
+      caseItem,
+      doneField,
+      noteField,
+      label,
+      value: String(caseItem[noteField] || ''),
     });
   };
 
-  const CheckCell = ({ caseItem, field, label }: { caseItem: Case; field: 'prepEmailDone' | 'agentEmailDone' | 'vesselEmailDone'; label: string }) => {
+  const toggle = (caseItem: Case, field: EmailDoneField, label: string) => {
+    const currentlyChecked = !!caseItem[field];
+    const noteField = NOTE_FIELD_BY_DONE_FIELD[field];
+
+    const updatedCase: Case = {
+      ...caseItem,
+      [field]: !currentlyChecked,
+      lastUpdatedDate: new Date().toISOString(),
+    };
+
+    onUpdateCase(updatedCase);
+
+    if (!currentlyChecked) {
+      setNoteEditor({
+        caseItem: updatedCase,
+        doneField: field,
+        noteField,
+        label,
+        value: String(caseItem[noteField] || ''),
+      });
+    }
+  };
+
+  const saveNote = () => {
+    if (!noteEditor) return;
+
+    onUpdateCase({
+      ...noteEditor.caseItem,
+      [noteEditor.doneField]: true,
+      [noteEditor.noteField]: noteEditor.value.trim(),
+      lastUpdatedDate: new Date().toISOString(),
+    });
+
+    setNoteEditor(null);
+  };
+
+  const CheckCell = ({ caseItem, field, label }: { caseItem: Case; field: EmailDoneField; label: string }) => {
     const checked = !!caseItem[field];
+    const noteField = NOTE_FIELD_BY_DONE_FIELD[field];
+    const note = String(caseItem[noteField] || '').trim();
+    const noteTitle = note || 'No note added';
+
     return (
-      <button
-        type="button"
-        onClick={() => toggle(caseItem, field)}
-        className={`w-full min-w-[130px] rounded-lg border px-3 py-2 text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-          checked
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700'
-        }`}
-        title={label}
-      >
-        <span className={`h-4 w-4 rounded border flex items-center justify-center ${checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'}`}>
-          {checked ? '✓' : ''}
-        </span>
-        <span>{checked ? 'Done' : 'Pending'}</span>
-      </button>
+      <div className="flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => toggle(caseItem, field, label)}
+          className={`min-w-[125px] rounded-lg border px-3 py-2 text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            checked
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700'
+          }`}
+          title={label}
+        >
+          <span className={`h-4 w-4 rounded border flex items-center justify-center ${checked ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-300 bg-white'}`}>
+            {checked ? '✓' : ''}
+          </span>
+          <span>{checked ? 'Done' : 'Pending'}</span>
+        </button>
+
+        {(checked || note) && (
+          <div className="flex items-center gap-1">
+            <span
+              title={noteTitle}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border ${note ? 'bg-sky-50 text-sky-700 border-sky-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+            >
+              <StickyNote className="h-4 w-4" />
+            </span>
+            <button
+              type="button"
+              onClick={() => openNoteEditor(caseItem, field, label)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-sky-700"
+              title={`Edit note: ${label}`}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -66,7 +149,7 @@ export default function PrepareView({ cases, vessels, ports, onUpdateCase, onSel
             <ClipboardCheck className="h-5 w-5 text-sky-600" />
             Preparation Board
           </h2>
-          <p className="text-sm text-slate-500 mt-1">Open jobs with issued PO. Track preparation, agent email, and vessel email status.</p>
+          <p className="text-sm text-slate-500 mt-1">Open jobs with issued PO. Track preparation, agent email, vessel email status, and short notes.</p>
         </div>
         <div className="rounded-full bg-white border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm">
           {prepareCases.length} job{prepareCases.length === 1 ? '' : 's'} ready for preparation
@@ -75,7 +158,7 @@ export default function PrepareView({ cases, vessels, ports, onUpdateCase, onSel
 
       <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[1120px]">
+          <table className="w-full text-left min-w-[1240px]">
             <thead className="bg-slate-50 border-b border-slate-100 text-xs font-sans font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3">Vessel</th>
@@ -145,6 +228,51 @@ export default function PrepareView({ cases, vessels, ports, onUpdateCase, onSel
           </table>
         </div>
       </div>
+
+      {noteEditor && (
+        <div className="fixed bottom-5 right-5 z-[90] w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+          <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Add optional note?</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{noteEditor.label}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNoteEditor(null)}
+              className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+              title="Close without note"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="p-4">
+            <textarea
+              value={noteEditor.value}
+              onChange={(e) => setNoteEditor({ ...noteEditor, value: e.target.value })}
+              rows={4}
+              autoFocus
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              placeholder="Write short note, or close for no note."
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setNoteEditor(null)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                No note
+              </button>
+              <button
+                type="button"
+                onClick={saveNote}
+                className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700"
+              >
+                Save note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
