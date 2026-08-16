@@ -1,0 +1,8 @@
+Ports page update:
+- Replaced the long 'Relevant calls: future + last 30 days' dropdown with professional segmented controls.
+- Added Window: Operational / History.
+- Operational = last 30 days + upcoming port calls.
+- History = all old/current/future port calls and linked historical jobs.
+- Added Ports: With Calls / All Ports.
+- With Calls shows only ports that have vessel calls inside the selected window.
+- Removed the top Show Archived button from the main toolbar.

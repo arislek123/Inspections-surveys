@@ -47,14 +47,34 @@ export default function PortsView({
   const [editingCallId, setEditingCallId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const [callScope, setCallScope] = useState<'relevant' | 'all'>('relevant');
+  const [callScope, setCallScope] = useState<'operational' | 'history'>('operational');
+  const [portListMode, setPortListMode] = useState<'withCalls' | 'all'>('withCalls');
 
   const activeVessels = vessels.filter(v => !v.archived);
   const activePorts = ports.filter(p => !p.archived);
 
+  const isPortCallInOperationalWindow = (call: PortCall) => {
+    const dateValue = call.etb || call.eta || call.ets;
+    if (!dateValue) return false;
+    const date = new Date(`${dateValue}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const earliest = new Date(today);
+    earliest.setDate(today.getDate() - 30);
+    return date.getTime() >= earliest.getTime();
+  };
+
+  const isVisiblePortCall = (call: PortCall) => {
+    if (callScope === 'history') return true;
+    return isPortCallInOperationalWindow(call);
+  };
+
   const visiblePorts = useMemo(
-    () => ports.filter(p => showArchived || !p.archived).sort((a, b) => a.name.localeCompare(b.name)),
-    [ports, showArchived]
+    () => ports
+      .filter(p => showArchived || !p.archived)
+      .filter(p => portListMode === 'all' || portCalls.some(pc => pc.portId === p.id && (showArchived || !pc.archived) && isVisiblePortCall(pc)))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [ports, portCalls, showArchived, portListMode, callScope]
   );
 
   const getVesselName = (vesselId: string) => vessels.find(v => v.id === vesselId)?.name || 'Unknown Vessel';
@@ -62,17 +82,6 @@ export default function PortsView({
   const isOpenJob = (c: Case) => c.status !== 'Finished' && c.status !== 'Postponed';
   const scrollToForm = (targetId: string) => {
     window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
-  };
-  const isRelevantPortCall = (call: PortCall) => {
-    if (callScope === 'all') return true;
-    const dateValue = call.etb || call.eta || call.ets;
-    if (!dateValue) return true;
-    const date = new Date(`${dateValue}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const earliest = new Date(today);
-    earliest.setDate(today.getDate() - 30);
-    return date.getTime() >= earliest.getTime();
   };
 
   const resetPortForm = () => {
@@ -97,7 +106,7 @@ export default function PortsView({
     const criticalCases = openCases.filter(c => c.priority === 'Critical');
     const latestCase = [...openCases].sort((a, b) => new Date(b.lastUpdatedDate).getTime() - new Date(a.lastUpdatedDate).getTime())[0];
     const calls = portCalls
-      .filter(pc => pc.portId === portId && (showArchived || !pc.archived) && isRelevantPortCall(pc))
+      .filter(pc => pc.portId === portId && (showArchived || !pc.archived) && isVisiblePortCall(pc))
       .sort((a, b) => (a.etb || a.eta || a.ets || '').localeCompare(b.etb || b.eta || b.ets || ''));
     return { portCases, openCases, criticalCases, latestCase, calls };
   };
@@ -220,29 +229,51 @@ export default function PortsView({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-3 border-b border-slate-100 pb-5" id="ports-header">
         <div>
           <h2 className="text-lg font-sans font-bold text-slate-900 tracking-tight">Port Calls Registry</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage ports and planned vessel calls. Linked jobs auto-update from port-call ETB.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage ports and planned vessel calls. Linked jobs auto-update from port-call ETB/ETA.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={callScope}
-            onChange={(e) => setCallScope(e.target.value as 'relevant' | 'all')}
-            className="px-3 py-1.5 text-sm bg-white border border-slate-200 text-slate-700 font-semibold rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-sky-500"
-            title="Port call time range"
-          >
-            <option value="relevant">Relevant calls: future + last 30 days</option>
-            <option value="all">All past / current / future calls</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => setShowArchived(!showArchived)}
-            className={`px-3 py-1.5 text-sm border font-semibold rounded-lg shadow-sm ${showArchived ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
-          >
-            {showArchived ? 'Hide Archived' : 'Show Archived'}
-          </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-1 rounded-xl bg-white border border-slate-200 shadow-sm p-1" title="Operational window means last 30 days plus all upcoming port calls">
+            <span className="hidden xl:inline px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Window</span>
+            <button
+              type="button"
+              onClick={() => setCallScope('operational')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${callScope === 'operational' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              Operational
+            </button>
+            <button
+              type="button"
+              onClick={() => setCallScope('history')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${callScope === 'history' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              History
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 rounded-xl bg-white border border-slate-200 shadow-sm p-1" title="Filter the port list">
+            <span className="hidden xl:inline px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Ports</span>
+            <button
+              type="button"
+              onClick={() => setPortListMode('withCalls')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${portListMode === 'withCalls' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+              title="Show only ports with calls in the selected window"
+            >
+              With Calls
+            </button>
+            <button
+              type="button"
+              onClick={() => setPortListMode('all')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${portListMode === 'all' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              All Ports
+            </button>
+          </div>
+
+
           <button
             type="button"
             onClick={() => { resetCallForm(); setShowAddCallForm(!showAddCallForm); setShowAddPortForm(false); }}
-            className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+            className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
           >
             <Ship className="h-4 w-4" />
             <span>Add Vessel Call</span>
@@ -251,7 +282,7 @@ export default function PortsView({
             type="button"
             id="btn-toggle-add-port"
             onClick={() => { resetPortForm(); setShowAddPortForm(!showAddPortForm); setShowAddCallForm(false); }}
-            className="px-4 py-1.5 text-sm bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+            className="px-4 py-2 text-sm bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-xl flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>Add New Port</span>
@@ -318,7 +349,7 @@ export default function PortsView({
               <input type="text" value={callForm.agent} onChange={(e) => setCallForm(prev => ({ ...prev, agent: e.target.value }))} placeholder="Agent name" className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </div>
           </div>
-          <p className="text-xs text-slate-500 mb-4">Linked jobs will use this call’s ETB as target date and will auto-update if the ETB changes later.</p>
+          <p className="text-xs text-slate-500 mb-4">Linked jobs use ETB when available; if ETB is empty, ETA is used. Future ETB changes will update the linked job date.</p>
           <div className="flex justify-end space-x-2">
             <button type="button" onClick={() => { resetCallForm(); setShowAddCallForm(false); }} className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg font-medium">Cancel</button>
             <button type="submit" className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg cursor-pointer shadow-sm">{editingCallId ? 'Save Port Call' : 'Add Port Call'}</button>
@@ -375,7 +406,7 @@ export default function PortsView({
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs">
                         {metrics.calls.map(call => {
-                          const linkedJobs = cases.filter(c => c.portCallId === call.id && isOpenJob(c));
+                          const linkedJobs = cases.filter(c => c.portCallId === call.id && (callScope === 'history' || isOpenJob(c)));
                           return (
                             <tr key={call.id} className="hover:bg-slate-50">
                               <td className="px-4 py-2 font-bold text-slate-900">{getVesselName(call.vesselId)}</td>
@@ -406,7 +437,7 @@ export default function PortsView({
                     </table>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic py-2">No relevant vessel calls registered for this port in the selected range.</p>
+                  <p className="text-xs text-slate-400 italic py-2">No vessel calls in the selected operational window.</p>
                 )}
               </div>
             </div>
