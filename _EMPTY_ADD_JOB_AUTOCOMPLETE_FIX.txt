@@ -1,0 +1,1 @@
+Add Job now opens with Vessel and Job Type empty. Empty search dropdowns show all vessels/job types. Selected vessels no longer show false No vessel found.

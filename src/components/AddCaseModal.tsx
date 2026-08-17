@@ -30,9 +30,9 @@ export default function AddCaseModal({
 }: AddCaseModalProps) {
   
   // State for core fields
-  const [vesselId, setVesselId] = useState(vessels[0]?.id || '');
+  const [vesselId, setVesselId] = useState('');
   const [portId, setPortId] = useState(ports[0]?.id || '');
-  const [jobType, setJobType] = useState(jobTypes[0] || 'Other');
+  const [jobType, setJobType] = useState('');
   const [customJobType, setCustomJobType] = useState('');
   const [isCustomJob, setIsCustomJob] = useState(false);
   const [vesselSearch, setVesselSearch] = useState('');
@@ -42,18 +42,16 @@ export default function AddCaseModal({
 
   useEffect(() => {
     if (isOpen) {
-      const currentVessel = vessels.find(v => v.id === vesselId) || vessels[0];
-      if (currentVessel) {
-        setVesselId(currentVessel.id);
-        setVesselSearch(`${currentVessel.name}${currentVessel.imo ? ` (IMO ${currentVessel.imo})` : ''}`);
-      }
-
-      const nextJobType = preselectedJobType || jobTypes[0] || 'Other';
+      setVesselId('');
+      setVesselSearch('');
+      const nextJobType = preselectedJobType || '';
       setJobType(nextJobType);
       setJobTypeSearch(nextJobType);
       setIsCustomJob(false);
+      setShowVesselSuggestions(false);
+      setShowJobTypeSuggestions(false);
     }
-  }, [isOpen]);
+  }, [isOpen, preselectedJobType]);
   
   const [subject, setSubject] = useState('');
   const [responsiblePerson, setResponsiblePerson] = useState('Technical Department');
@@ -100,16 +98,18 @@ export default function AddCaseModal({
 
   const filteredVessels = useMemo(() => {
     const term = vesselSearch.trim().toLowerCase();
-    const matches = !term
-      ? vessels
-      : vessels.filter(v => `${v.name} ${v.imo || ''} ${v.fleet || ''}`.toLowerCase().includes(term));
-    return matches.slice(0, 8);
+    const sortedVessels = [...vessels].sort((a, b) => a.name.localeCompare(b.name));
+    if (!term) return sortedVessels;
+    return sortedVessels.filter(v => {
+      const searchable = `${formatVesselLabel(v)} ${v.name} ${v.imo || ''} ${v.fleet || ''}`.toLowerCase();
+      return searchable.includes(term);
+    });
   }, [vessels, vesselSearch]);
 
   const filteredJobTypes = useMemo(() => {
     const term = jobTypeSearch.trim().toLowerCase();
-    const matches = !term ? jobTypes : jobTypes.filter(t => t.toLowerCase().includes(term));
-    return matches.slice(0, 8);
+    const sortedJobTypes = [...jobTypes].sort((a, b) => a.localeCompare(b));
+    return !term ? sortedJobTypes : sortedJobTypes.filter(t => t.toLowerCase().includes(term));
   }, [jobTypes, jobTypeSearch]);
 
   const applyPortCallToCase = (callId: string) => {
@@ -211,15 +211,13 @@ export default function AddCaseModal({
   };
 
   const resetForm = () => {
-    const firstVessel = vessels[0];
-    const firstJobType = jobTypes[0] || 'Other';
-    setVesselId(firstVessel?.id || '');
+    setVesselId('');
     setPortId(ports[0]?.id || '');
-    setJobType(firstJobType);
+    setJobType('');
     setCustomJobType('');
     setIsCustomJob(false);
-    setVesselSearch(firstVessel ? formatVesselLabel(firstVessel) : '');
-    setJobTypeSearch(firstJobType);
+    setVesselSearch('');
+    setJobTypeSearch('');
     setShowVesselSuggestions(false);
     setShowJobTypeSuggestions(false);
     setSubject('');
@@ -340,7 +338,7 @@ export default function AddCaseModal({
               {showVesselSuggestions && vesselSearch.trim() && filteredVessels.length === 1 && (
                 <p className="text-[10px] text-slate-400 mt-1">Press Tab to select {filteredVessels[0].name}</p>
               )}
-              {vesselSearch.trim() && filteredVessels.length === 0 && (
+              {vesselSearch.trim() && !vesselId && filteredVessels.length === 0 && (
                 <p className="text-[11px] text-red-500 mt-1">No vessel found.</p>
               )}
             </div>
@@ -436,7 +434,7 @@ export default function AddCaseModal({
                   {showJobTypeSuggestions && jobTypeSearch.trim() && filteredJobTypes.length === 1 && (
                     <p className="text-[10px] text-slate-400 mt-1">Press Tab to select {filteredJobTypes[0]}</p>
                   )}
-                  {jobTypeSearch.trim() && filteredJobTypes.length === 0 && (
+                  {jobTypeSearch.trim() && !jobType && filteredJobTypes.length === 0 && (
                     <p className="text-[11px] text-slate-400 mt-1">No matching job type. Use + Add custom job type.</p>
                   )}
                 </div>
