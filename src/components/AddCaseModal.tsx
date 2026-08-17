@@ -37,17 +37,23 @@ export default function AddCaseModal({
   const [isCustomJob, setIsCustomJob] = useState(false);
   const [vesselSearch, setVesselSearch] = useState('');
   const [jobTypeSearch, setJobTypeSearch] = useState('');
+  const [showVesselSuggestions, setShowVesselSuggestions] = useState(false);
+  const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      if (preselectedJobType) {
-        setJobType(preselectedJobType);
-        setIsCustomJob(false);
-      } else {
-        setJobType(jobTypes[0] || 'Other');
+      const currentVessel = vessels.find(v => v.id === vesselId) || vessels[0];
+      if (currentVessel) {
+        setVesselId(currentVessel.id);
+        setVesselSearch(`${currentVessel.name}${currentVessel.imo ? ` (IMO ${currentVessel.imo})` : ''}`);
       }
+
+      const nextJobType = preselectedJobType || jobTypes[0] || 'Other';
+      setJobType(nextJobType);
+      setJobTypeSearch(nextJobType);
+      setIsCustomJob(false);
     }
-  }, [isOpen, preselectedJobType, jobTypes]);
+  }, [isOpen]);
   
   const [subject, setSubject] = useState('');
   const [responsiblePerson, setResponsiblePerson] = useState('Technical Department');
@@ -76,6 +82,18 @@ export default function AddCaseModal({
 
   const getVesselName = (id: string) => vessels.find(v => v.id === id)?.name || 'Unknown Vessel';
   const getPortName = (id: string) => ports.find(p => p.id === id)?.name || 'Unknown Port';
+  const formatVesselLabel = (vessel: Vessel) => `${vessel.name}${vessel.imo ? ` (IMO ${vessel.imo})` : ''}`;
+  const selectVessel = (vessel: Vessel) => {
+    setVesselId(vessel.id);
+    setVesselSearch(formatVesselLabel(vessel));
+    setShowVesselSuggestions(false);
+  };
+  const selectJobType = (type: string) => {
+    setJobType(type);
+    setJobTypeSearch(type);
+    setShowJobTypeSuggestions(false);
+  };
+
   const availablePortCalls = portCalls
     .filter(call => !call.archived && (!vesselId || call.vesselId === vesselId))
     .sort((a, b) => (a.etb || a.eta || '').localeCompare(b.etb || b.eta || ''));
@@ -85,21 +103,22 @@ export default function AddCaseModal({
     const matches = !term
       ? vessels
       : vessels.filter(v => `${v.name} ${v.imo || ''} ${v.fleet || ''}`.toLowerCase().includes(term));
-    const selected = vessels.find(v => v.id === vesselId);
-    return selected && !matches.some(v => v.id === selected.id) ? [selected, ...matches] : matches;
-  }, [vessels, vesselSearch, vesselId]);
+    return matches.slice(0, 8);
+  }, [vessels, vesselSearch]);
 
   const filteredJobTypes = useMemo(() => {
     const term = jobTypeSearch.trim().toLowerCase();
     const matches = !term ? jobTypes : jobTypes.filter(t => t.toLowerCase().includes(term));
-    return jobType && !matches.includes(jobType) ? [jobType, ...matches] : matches;
-  }, [jobTypes, jobTypeSearch, jobType]);
+    return matches.slice(0, 8);
+  }, [jobTypes, jobTypeSearch]);
 
   const applyPortCallToCase = (callId: string) => {
     setSelectedPortCallId(callId);
     const call = portCalls.find(pc => pc.id === callId);
     if (!call) return;
     setVesselId(call.vesselId);
+    const linkedVessel = vessels.find(v => v.id === call.vesselId);
+    if (linkedVessel) setVesselSearch(formatVesselLabel(linkedVessel));
     setPortId(call.portId);
     setDeadline(call.etb || call.eta || '');
     setEta(call.eta || '');
@@ -118,7 +137,10 @@ export default function AddCaseModal({
     setValidationError('');
 
     // Validations
-    if (!vesselId) {
+    const matchedVessel = filteredVessels.length === 1 ? filteredVessels[0] : vessels.find(v => formatVesselLabel(v).toLowerCase() === vesselSearch.trim().toLowerCase() || v.name.toLowerCase() === vesselSearch.trim().toLowerCase());
+    const finalVesselId = vesselId || matchedVessel?.id || '';
+
+    if (!finalVesselId) {
       setValidationError('Please select a vessel.');
       return;
     }
@@ -150,14 +172,15 @@ export default function AddCaseModal({
       return;
     }
 
-    const selectedJobType = isCustomJob ? customJobType.trim() : jobType;
+    const matchedJobType = filteredJobTypes.length === 1 ? filteredJobTypes[0] : jobTypes.find(type => type.toLowerCase() === jobTypeSearch.trim().toLowerCase());
+    const selectedJobType = isCustomJob ? customJobType.trim() : (matchedJobType || jobType);
     if (!selectedJobType) {
       setValidationError('Please specify or select a job type.');
       return;
     }
 
     onAddCase({
-      vesselId,
+      vesselId: finalVesselId,
       portId,
       jobType: selectedJobType,
       subject: subject.trim(),
@@ -188,13 +211,17 @@ export default function AddCaseModal({
   };
 
   const resetForm = () => {
-    setVesselId(vessels[0]?.id || '');
+    const firstVessel = vessels[0];
+    const firstJobType = jobTypes[0] || 'Other';
+    setVesselId(firstVessel?.id || '');
     setPortId(ports[0]?.id || '');
-    setJobType(jobTypes[0] || 'Other');
+    setJobType(firstJobType);
     setCustomJobType('');
     setIsCustomJob(false);
-    setVesselSearch('');
-    setJobTypeSearch('');
+    setVesselSearch(firstVessel ? formatVesselLabel(firstVessel) : '');
+    setJobTypeSearch(firstJobType);
+    setShowVesselSuggestions(false);
+    setShowJobTypeSuggestions(false);
     setSubject('');
     setResponsiblePerson('Technical Department');
     setStatus('In Progress');
@@ -260,29 +287,62 @@ export default function AddCaseModal({
           {/* Core Fields Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            {/* Vessel Select */}
-            <div>
+            {/* Vessel Search Select */}
+            <div className="relative">
               <label htmlFor="modal-vessel-search" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Vessel <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 id="modal-vessel-search"
                 value={vesselSearch}
-                onChange={(e) => setVesselSearch(e.target.value)}
+                onFocus={() => setShowVesselSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowVesselSuggestions(false), 120)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  const currentVessel = vessels.find(v => v.id === vesselId);
+                  setVesselSearch(nextValue);
+                  setShowVesselSuggestions(true);
+                  if (!currentVessel || formatVesselLabel(currentVessel) !== nextValue) setVesselId('');
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab' && filteredVessels.length === 1) {
+                    event.preventDefault();
+                    selectVessel(filteredVessels[0]);
+                    setTimeout(() => document.getElementById('modal-port')?.focus(), 0);
+                  }
+                  if (event.key === 'Enter' && filteredVessels.length > 0) {
+                    event.preventDefault();
+                    selectVessel(filteredVessels[0]);
+                  }
+                }}
                 placeholder="Search vessel"
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all mb-2"
-              />
-              <select
-                id="modal-vessel"
-                value={vesselId}
-                onChange={(e) => setVesselId(e.target.value)}
-                className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                autoComplete="off"
                 required
-              >
-                <option value="">-- Select Vessel --</option>
-                {filteredVessels.map((v) => (
-                  <option key={v.id} value={v.id}>{v.name} {v.imo ? `(IMO ${v.imo})` : ''}</option>
-                ))}
-              </select>
+              />
+              {showVesselSuggestions && filteredVessels.length > 0 && (
+                <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden max-h-56 overflow-y-auto">
+                  {filteredVessels.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        selectVessel(v);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-xs font-sans hover:bg-sky-50 transition-colors ${vesselId === v.id ? 'bg-sky-50 text-sky-700 font-bold' : 'text-slate-700'}`}
+                    >
+                      <span className="block">{v.name}</span>
+                      {v.imo && <span className="block text-[10px] text-slate-400 font-mono">IMO {v.imo}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showVesselSuggestions && vesselSearch.trim() && filteredVessels.length === 1 && (
+                <p className="text-[10px] text-slate-400 mt-1">Press Tab to select {filteredVessels[0].name}</p>
+              )}
+              {vesselSearch.trim() && filteredVessels.length === 0 && (
+                <p className="text-[11px] text-red-500 mt-1">No vessel found.</p>
+              )}
             </div>
 
             {/* Port Select */}
@@ -327,30 +387,59 @@ export default function AddCaseModal({
                   required
                 />
               ) : (
-                <>
+                <div className="relative">
                   <input
                     type="text"
                     id="modal-job-type-search"
                     value={jobTypeSearch}
-                    onChange={(e) => setJobTypeSearch(e.target.value)}
+                    onFocus={() => setShowJobTypeSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowJobTypeSuggestions(false), 120)}
+                    onChange={(e) => {
+                      const nextValue = e.target.value;
+                      setJobTypeSearch(nextValue);
+                      setShowJobTypeSuggestions(true);
+                      if (jobType !== nextValue) setJobType('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Tab' && filteredJobTypes.length === 1) {
+                        event.preventDefault();
+                        selectJobType(filteredJobTypes[0]);
+                        setTimeout(() => document.getElementById('modal-subject')?.focus(), 0);
+                      }
+                      if (event.key === 'Enter' && filteredJobTypes.length > 0) {
+                        event.preventDefault();
+                        selectJobType(filteredJobTypes[0]);
+                      }
+                    }}
                     placeholder="Search job type"
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all mb-2"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                    autoComplete="off"
+                    required
                   />
-                  <select
-                    id="modal-job-type"
-                  value={jobType}
-                  onChange={(e) => setJobType(e.target.value)}
-                  className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
-                  required
-                >
-                  {filteredJobTypes.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                  {filteredJobTypes.length === 0 && (
+                  {showJobTypeSuggestions && filteredJobTypes.length > 0 && (
+                    <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden max-h-56 overflow-y-auto">
+                      {filteredJobTypes.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            selectJobType(t);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-xs font-sans hover:bg-sky-50 transition-colors ${jobType === t ? 'bg-sky-50 text-sky-700 font-bold' : 'text-slate-700'}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showJobTypeSuggestions && jobTypeSearch.trim() && filteredJobTypes.length === 1 && (
+                    <p className="text-[10px] text-slate-400 mt-1">Press Tab to select {filteredJobTypes[0]}</p>
+                  )}
+                  {jobTypeSearch.trim() && filteredJobTypes.length === 0 && (
                     <p className="text-[11px] text-slate-400 mt-1">No matching job type. Use + Add custom job type.</p>
                   )}
-                </>
+                </div>
               )}
             </div>
 

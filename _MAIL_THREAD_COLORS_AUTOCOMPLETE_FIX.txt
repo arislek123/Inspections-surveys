@@ -1,0 +1,6 @@
+Fix included:
+- Mail links now behave as thread groups. If A is linked to B and B is linked to C, all A/B/C are joined together.
+- All mails in the same linked thread get the same color/visual group.
+- Vessel selector in New Technical Case now works like autocomplete: type to see matching vessels and click to select.
+- Job type selector now works like autocomplete: type to see matching jobs and click to select.
+- If only one vessel/job match remains, pressing Tab selects it automatically and moves to the next field.

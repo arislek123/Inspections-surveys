@@ -404,6 +404,55 @@ export default function CaseDetailView({
   const [draggedEmailId, setDraggedEmailId] = useState<string | null>(null);
   const [linkingEmailId, setLinkingEmailId] = useState<string | null>(null);
 
+  const getLinkedEmailGroup = (startId: string, emails: Email[] = caseItem.emails): string[] => {
+    const visited = new Set<string>();
+    const stack = [startId];
+
+    while (stack.length > 0) {
+      const currentId = stack.pop();
+      if (!currentId || visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const currentEmail = emails.find(email => email.id === currentId);
+      const relatedIds = new Set<string>(currentEmail?.linkedEmailIds || []);
+      emails.forEach(email => {
+        if (email.linkedEmailIds?.includes(currentId)) relatedIds.add(email.id);
+      });
+
+      relatedIds.forEach(id => {
+        if (!visited.has(id)) stack.push(id);
+      });
+    }
+
+    return Array.from(visited);
+  };
+
+  const emailGroupStyles = [
+    { card: 'border-sky-200 bg-sky-50/30 border-l-4 border-l-sky-500', badge: 'bg-sky-100 text-sky-700 border-sky-200', tag: 'border-sky-200 bg-sky-50 text-sky-700', text: 'text-sky-700' },
+    { card: 'border-emerald-200 bg-emerald-50/30 border-l-4 border-l-emerald-500', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', tag: 'border-emerald-200 bg-emerald-50 text-emerald-700', text: 'text-emerald-700' },
+    { card: 'border-violet-200 bg-violet-50/30 border-l-4 border-l-violet-500', badge: 'bg-violet-100 text-violet-700 border-violet-200', tag: 'border-violet-200 bg-violet-50 text-violet-700', text: 'text-violet-700' },
+    { card: 'border-amber-200 bg-amber-50/30 border-l-4 border-l-amber-500', badge: 'bg-amber-100 text-amber-700 border-amber-200', tag: 'border-amber-200 bg-amber-50 text-amber-700', text: 'text-amber-700' },
+    { card: 'border-rose-200 bg-rose-50/30 border-l-4 border-l-rose-500', badge: 'bg-rose-100 text-rose-700 border-rose-200', tag: 'border-rose-200 bg-rose-50 text-rose-700', text: 'text-rose-700' }
+  ];
+
+  const emailGroupIndexById = (() => {
+    const map = new Map<string, number>();
+    const seen = new Set<string>();
+    let groupIndex = 0;
+
+    caseItem.emails.forEach(email => {
+      if (seen.has(email.id)) return;
+      const groupIds = getLinkedEmailGroup(email.id, caseItem.emails);
+      groupIds.forEach(id => seen.add(id));
+      if (groupIds.length > 1) {
+        groupIds.forEach(id => map.set(id, groupIndex));
+        groupIndex += 1;
+      }
+    });
+
+    return map;
+  })();
+
   const toggleEmailExpand = (emailId: string) => {
     setExpandedEmails(prev => ({ ...prev, [emailId]: !prev[emailId] }));
   };
@@ -426,15 +475,19 @@ export default function CaseDetailView({
 
   const handleLinkEmails = (sourceId: string, targetId: string) => {
     if (!targetId || sourceId === targetId) return;
+
+    const sourceGroup = getLinkedEmailGroup(sourceId, caseItem.emails);
+    const targetGroup = getLinkedEmailGroup(targetId, caseItem.emails);
+    const mergedGroup = Array.from(new Set([...sourceGroup, ...targetGroup]));
+
     const nextEmails = caseItem.emails.map(email => {
-      if (email.id === sourceId) {
-        return { ...email, linkedEmailIds: Array.from(new Set([...(email.linkedEmailIds || []), targetId])) };
-      }
-      if (email.id === targetId) {
-        return { ...email, linkedEmailIds: Array.from(new Set([...(email.linkedEmailIds || []), sourceId])) };
-      }
-      return email;
+      if (!mergedGroup.includes(email.id)) return email;
+      return {
+        ...email,
+        linkedEmailIds: mergedGroup.filter(id => id !== email.id)
+      };
     });
+
     onUpdateCase({
       ...caseItem,
       emails: nextEmails,
@@ -1336,6 +1389,8 @@ export default function CaseDetailView({
                   .map(id => caseItem.emails.find(item => item.id === id))
                   .filter((item): item is Email => !!item);
                 const isBeingDragged = draggedEmailId === email.id;
+                const linkedGroupIndex = emailGroupIndexById.get(email.id);
+                const linkedGroupStyle = linkedGroupIndex !== undefined ? emailGroupStyles[linkedGroupIndex % emailGroupStyles.length] : undefined;
 
                 return (
                   <div 
@@ -1357,9 +1412,11 @@ export default function CaseDetailView({
                     }}
                     onDragEnd={() => setDraggedEmailId(null)}
                     className={`border rounded-xl transition-all ${isBeingDragged ? 'opacity-60 ring-2 ring-sky-300' : ''} ${
-                      isOutgoing 
-                        ? 'border-slate-200 bg-white shadow-sm' 
-                        : 'border-slate-100 bg-slate-50/50'
+                      linkedGroupStyle
+                        ? `${linkedGroupStyle.card} shadow-sm`
+                        : isOutgoing 
+                          ? 'border-slate-200 bg-white shadow-sm' 
+                          : 'border-slate-100 bg-slate-50/50'
                     }`}
                   >
                     {/* Collapsed Header click area */}
@@ -1396,6 +1453,11 @@ export default function CaseDetailView({
                             <span className="text-[10px] text-slate-400 font-bold">
                               #{emailIndex + 1}
                             </span>
+                            {linkedGroupStyle && (
+                              <span className={`text-[10px] font-bold border rounded-full px-1.5 py-0.5 ${linkedGroupStyle.badge}`}>
+                                Thread {(linkedGroupIndex || 0) + 1}
+                              </span>
+                            )}
                             <span className="text-xs font-mono text-slate-400">
                               {new Date(email.date).toLocaleDateString()} {new Date(email.date).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: false})}
                             </span>
@@ -1423,7 +1485,7 @@ export default function CaseDetailView({
                               {linkedEmails.map(linked => (
                                 <span
                                   key={linked.id}
-                                  className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700"
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${linkedGroupStyle?.tag || 'border-sky-100 bg-sky-50 text-sky-700'}`}
                                   title={linked.subject}
                                   onClick={(event) => {
                                     event.stopPropagation();
@@ -1437,7 +1499,7 @@ export default function CaseDetailView({
                                       event.stopPropagation();
                                       handleUnlinkEmails(email.id, linked.id);
                                     }}
-                                    className="ml-1 text-sky-500 hover:text-red-600"
+                                    className="ml-1 opacity-70 hover:opacity-100 hover:text-red-600"
                                     title="Unlink mails"
                                   >
                                     ×
@@ -1526,7 +1588,7 @@ export default function CaseDetailView({
                             <strong className="text-slate-500">To:</strong> {email.recipient}
                           </p>
                           {linkedEmails.length > 0 && (
-                            <p className="font-sans text-xs text-sky-700">
+                            <p className={`font-sans text-xs ${linkedGroupStyle?.text || 'text-sky-700'}`}>
                               <strong className="text-slate-500">Linked mails:</strong> {linkedEmails.map(linked => linked.ref || linked.subject).join(', ')}
                             </p>
                           )}
