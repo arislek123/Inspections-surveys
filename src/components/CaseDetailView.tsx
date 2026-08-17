@@ -23,7 +23,9 @@ import {
   Calendar,
   AlertTriangle,
   FileCheck,
-  Edit2
+  Edit2,
+  GripVertical,
+  Link2
 } from 'lucide-react';
 import { Case, Vessel, Port, Comment, Email, CaseStatus, CasePriority } from '../types';
 
@@ -281,9 +283,16 @@ export default function CaseDetailView({
     if (!target) return;
     if (!confirm(`Delete mail entry ${target.ref} - ${target.subject}?`)) return;
 
+    const remainingEmails = caseItem.emails
+      .filter(e => e.id !== emailId)
+      .map(e => ({
+        ...e,
+        linkedEmailIds: e.linkedEmailIds?.filter(id => id !== emailId)
+      }));
+
     const updated: Case = {
       ...caseItem,
-      emails: caseItem.emails.filter(e => e.id !== emailId),
+      emails: remainingEmails,
       lastUpdatedDate: new Date().toISOString()
     };
     onUpdateCase(updated);
@@ -301,6 +310,8 @@ export default function CaseDetailView({
       return;
     }
 
+    const existingEmail = editingEmailId ? caseItem.emails.find(email => email.id === editingEmailId) : undefined;
+
     const cleanEmail: Email = {
       id: editingEmailId || `em-${Date.now()}`,
       ref: mailRef.trim(),
@@ -312,6 +323,7 @@ export default function CaseDetailView({
       summary: mailSummary.trim(),
       content: mailContent.trim(),
       attachments: undefined,
+      linkedEmailIds: existingEmail?.linkedEmailIds || undefined,
       followUpRequired: false,
       isImportant: false
     };
@@ -389,8 +401,70 @@ export default function CaseDetailView({
 
   // Email Expandable states
   const [expandedEmails, setExpandedEmails] = useState<{ [key: string]: boolean }>({});
+  const [draggedEmailId, setDraggedEmailId] = useState<string | null>(null);
+  const [linkingEmailId, setLinkingEmailId] = useState<string | null>(null);
+
   const toggleEmailExpand = (emailId: string) => {
     setExpandedEmails(prev => ({ ...prev, [emailId]: !prev[emailId] }));
+  };
+
+  const handleReorderEmails = (fromId: string | null, toId: string) => {
+    if (!fromId || fromId === toId) return;
+    const nextEmails = [...caseItem.emails];
+    const fromIndex = nextEmails.findIndex(email => email.id === fromId);
+    const toIndex = nextEmails.findIndex(email => email.id === toId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const [moved] = nextEmails.splice(fromIndex, 1);
+    nextEmails.splice(toIndex, 0, moved);
+    onUpdateCase({
+      ...caseItem,
+      emails: nextEmails,
+      lastUpdatedDate: new Date().toISOString()
+    });
+    setDraggedEmailId(null);
+  };
+
+  const handleLinkEmails = (sourceId: string, targetId: string) => {
+    if (!targetId || sourceId === targetId) return;
+    const nextEmails = caseItem.emails.map(email => {
+      if (email.id === sourceId) {
+        return { ...email, linkedEmailIds: Array.from(new Set([...(email.linkedEmailIds || []), targetId])) };
+      }
+      if (email.id === targetId) {
+        return { ...email, linkedEmailIds: Array.from(new Set([...(email.linkedEmailIds || []), sourceId])) };
+      }
+      return email;
+    });
+    onUpdateCase({
+      ...caseItem,
+      emails: nextEmails,
+      lastUpdatedDate: new Date().toISOString()
+    });
+    setLinkingEmailId(null);
+  };
+
+  const handleUnlinkEmails = (sourceId: string, targetId: string) => {
+    const nextEmails = caseItem.emails.map(email => {
+      if (email.id === sourceId) {
+        return { ...email, linkedEmailIds: email.linkedEmailIds?.filter(id => id !== targetId) };
+      }
+      if (email.id === targetId) {
+        return { ...email, linkedEmailIds: email.linkedEmailIds?.filter(id => id !== sourceId) };
+      }
+      return email;
+    });
+    onUpdateCase({
+      ...caseItem,
+      emails: nextEmails,
+      lastUpdatedDate: new Date().toISOString()
+    });
+  };
+
+  const scrollToEmail = (emailId: string) => {
+    setExpandedEmails(prev => ({ ...prev, [emailId]: true }));
+    setTimeout(() => {
+      document.getElementById(`timeline-email-${emailId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
   };
 
   // Confirm and Delete Case
@@ -1251,16 +1325,38 @@ export default function CaseDetailView({
             )}
 
             {/* Email timeline stream */}
+            {caseItem.emails.length > 1 && (
+              <p className="text-[11px] text-slate-400 -mt-2 mb-2">Drag mail cards to reorder. Use Link to connect related incoming/outgoing messages.</p>
+            )}
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 max-h-[450px]" id="email-timeline-stream">
-              {caseItem.emails.map((email) => {
+              {caseItem.emails.map((email, emailIndex) => {
                 const isExpanded = !!expandedEmails[email.id];
                 const isOutgoing = email.direction === 'Outgoing';
+                const linkedEmails = (email.linkedEmailIds || [])
+                  .map(id => caseItem.emails.find(item => item.id === id))
+                  .filter((item): item is Email => !!item);
+                const isBeingDragged = draggedEmailId === email.id;
 
                 return (
                   <div 
                     key={email.id} 
                     id={`timeline-email-${email.id}`}
-                    className={`border rounded-xl transition-all ${
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedEmailId(email.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleReorderEmails(draggedEmailId, email.id);
+                    }}
+                    onDragEnd={() => setDraggedEmailId(null)}
+                    className={`border rounded-xl transition-all ${isBeingDragged ? 'opacity-60 ring-2 ring-sky-300' : ''} ${
                       isOutgoing 
                         ? 'border-slate-200 bg-white shadow-sm' 
                         : 'border-slate-100 bg-slate-50/50'
@@ -1272,6 +1368,14 @@ export default function CaseDetailView({
                       className="p-4 flex items-start justify-between cursor-pointer hover:bg-slate-50/40 select-none"
                     >
                       <div className="flex items-start space-x-3 min-w-0">
+                        <div
+                          className="p-2 rounded-lg mt-0.5 shrink-0 bg-slate-50 border border-slate-100 text-slate-400 cursor-grab active:cursor-grabbing"
+                          title="Drag to change mail position"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </div>
+
                         {/* Direction Arrow Icon Badge */}
                         <div className={`p-2 rounded-lg mt-0.5 shrink-0 ${
                           isOutgoing ? 'bg-slate-100 text-slate-600' : 'bg-sky-50 text-sky-600'
@@ -1288,6 +1392,9 @@ export default function CaseDetailView({
                           <div className="flex items-center space-x-2">
                             <span className="font-mono font-bold text-xs bg-slate-800 text-slate-100 px-1.5 py-0.2 rounded">
                               {email.ref}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">
+                              #{emailIndex + 1}
                             </span>
                             <span className="text-xs font-mono text-slate-400">
                               {new Date(email.date).toLocaleDateString()} {new Date(email.date).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: false})}
@@ -1309,6 +1416,36 @@ export default function CaseDetailView({
                           <p className="text-xs text-slate-500 font-sans mt-0.5 italic">
                             {email.summary}
                           </p>
+
+                          {linkedEmails.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Linked</span>
+                              {linkedEmails.map(linked => (
+                                <span
+                                  key={linked.id}
+                                  className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700"
+                                  title={linked.subject}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    scrollToEmail(linked.id);
+                                  }}
+                                >
+                                  {linked.ref || linked.subject}
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleUnlinkEmails(email.id, linked.id);
+                                    }}
+                                    className="ml-1 text-sky-500 hover:text-red-600"
+                                    title="Unlink mails"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1320,6 +1457,18 @@ export default function CaseDetailView({
                           {email.direction}
                         </span>
                         <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setLinkingEmailId(prev => prev === email.id ? null : email.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-[11px] font-bold"
+                            title="Link this mail with another mail"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                            <span>Link</span>
+                          </button>
                           <button
                             type="button"
                             onClick={(event) => {
@@ -1345,6 +1494,24 @@ export default function CaseDetailView({
                             <span>Delete</span>
                           </button>
                         </div>
+                        {linkingEmailId === email.id && (
+                          <select
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              handleLinkEmails(email.id, event.target.value);
+                              event.currentTarget.value = '';
+                            }}
+                            className="w-56 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            defaultValue=""
+                          >
+                            <option value="">Select mail to link</option>
+                            {caseItem.emails
+                              .filter(item => item.id !== email.id && !(email.linkedEmailIds || []).includes(item.id))
+                              .map(item => (
+                                <option key={item.id} value={item.id}>{item.ref || 'Mail'} - {item.subject}</option>
+                              ))}
+                          </select>
+                        )}
                       </div>
                     </div>
 
@@ -1358,6 +1525,11 @@ export default function CaseDetailView({
                           <p className="font-sans text-xs">
                             <strong className="text-slate-500">To:</strong> {email.recipient}
                           </p>
+                          {linkedEmails.length > 0 && (
+                            <p className="font-sans text-xs text-sky-700">
+                              <strong className="text-slate-500">Linked mails:</strong> {linkedEmails.map(linked => linked.ref || linked.subject).join(', ')}
+                            </p>
+                          )}
                           {email.attachments && (
                             <p className="font-mono text-xs text-slate-600 flex items-center space-x-1.5 mt-2">
                               <Paperclip className="h-3.5 w-3.5 text-slate-400 shrink-0" />

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, ChevronDown, ChevronUp, Plus, ShieldAlert } from 'lucide-react';
 import { Case, Vessel, Port, PortCall, CaseStatus, CasePriority } from '../types';
 
@@ -35,6 +35,8 @@ export default function AddCaseModal({
   const [jobType, setJobType] = useState(jobTypes[0] || 'Other');
   const [customJobType, setCustomJobType] = useState('');
   const [isCustomJob, setIsCustomJob] = useState(false);
+  const [vesselSearch, setVesselSearch] = useState('');
+  const [jobTypeSearch, setJobTypeSearch] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -77,6 +79,21 @@ export default function AddCaseModal({
   const availablePortCalls = portCalls
     .filter(call => !call.archived && (!vesselId || call.vesselId === vesselId))
     .sort((a, b) => (a.etb || a.eta || '').localeCompare(b.etb || b.eta || ''));
+
+  const filteredVessels = useMemo(() => {
+    const term = vesselSearch.trim().toLowerCase();
+    const matches = !term
+      ? vessels
+      : vessels.filter(v => `${v.name} ${v.imo || ''} ${v.fleet || ''}`.toLowerCase().includes(term));
+    const selected = vessels.find(v => v.id === vesselId);
+    return selected && !matches.some(v => v.id === selected.id) ? [selected, ...matches] : matches;
+  }, [vessels, vesselSearch, vesselId]);
+
+  const filteredJobTypes = useMemo(() => {
+    const term = jobTypeSearch.trim().toLowerCase();
+    const matches = !term ? jobTypes : jobTypes.filter(t => t.toLowerCase().includes(term));
+    return jobType && !matches.includes(jobType) ? [jobType, ...matches] : matches;
+  }, [jobTypes, jobTypeSearch, jobType]);
 
   const applyPortCallToCase = (callId: string) => {
     setSelectedPortCallId(callId);
@@ -176,6 +193,8 @@ export default function AddCaseModal({
     setJobType(jobTypes[0] || 'Other');
     setCustomJobType('');
     setIsCustomJob(false);
+    setVesselSearch('');
+    setJobTypeSearch('');
     setSubject('');
     setResponsiblePerson('Technical Department');
     setStatus('In Progress');
@@ -243,7 +262,15 @@ export default function AddCaseModal({
             
             {/* Vessel Select */}
             <div>
-              <label htmlFor="modal-vessel" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Vessel <span className="text-red-500">*</span></label>
+              <label htmlFor="modal-vessel-search" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Vessel <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                id="modal-vessel-search"
+                value={vesselSearch}
+                onChange={(e) => setVesselSearch(e.target.value)}
+                placeholder="Search vessel"
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all mb-2"
+              />
               <select
                 id="modal-vessel"
                 value={vesselId}
@@ -252,7 +279,7 @@ export default function AddCaseModal({
                 required
               >
                 <option value="">-- Select Vessel --</option>
-                {vessels.map((v) => (
+                {filteredVessels.map((v) => (
                   <option key={v.id} value={v.id}>{v.name} {v.imo ? `(IMO ${v.imo})` : ''}</option>
                 ))}
               </select>
@@ -300,17 +327,30 @@ export default function AddCaseModal({
                   required
                 />
               ) : (
-                <select
-                  id="modal-job-type"
+                <>
+                  <input
+                    type="text"
+                    id="modal-job-type-search"
+                    value={jobTypeSearch}
+                    onChange={(e) => setJobTypeSearch(e.target.value)}
+                    placeholder="Search job type"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all mb-2"
+                  />
+                  <select
+                    id="modal-job-type"
                   value={jobType}
                   onChange={(e) => setJobType(e.target.value)}
                   className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
                   required
                 >
-                  {jobTypes.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                  {filteredJobTypes.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {filteredJobTypes.length === 0 && (
+                    <p className="text-[11px] text-slate-400 mt-1">No matching job type. Use + Add custom job type.</p>
+                  )}
+                </>
               )}
             </div>
 
@@ -364,7 +404,7 @@ export default function AddCaseModal({
                   onClick={() => setDateSource('portCall')}
                   className={`border rounded-lg px-3 py-2 text-xs font-bold text-left ${dateSource === 'portCall' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
                 >
-                  From vessel port call ETB
+                  From vessel port call ETA / ETB
                 </button>
               </div>
             </div>

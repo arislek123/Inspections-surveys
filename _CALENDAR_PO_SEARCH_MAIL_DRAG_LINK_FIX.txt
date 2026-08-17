@@ -1,0 +1,1 @@
+Calendar now shows subtle PO and Prepared indicators. New job modal has vessel and job type search. Mail timeline supports drag reorder and bidirectional linked mails.

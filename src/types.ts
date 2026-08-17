@@ -21,6 +21,7 @@ export interface Email {
   summary: string;
   content: string;
   attachments?: string;
+  linkedEmailIds?: string[];
   followUpRequired: boolean;
   isImportant?: boolean;
 }
