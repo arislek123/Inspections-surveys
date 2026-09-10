@@ -79,8 +79,8 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
   const preparationChecklistTitle = (c: Case) => `Preparation: ${c.prepEmailDone ? '✓' : '—'} Prep | ${c.agentEmailDone ? '✓' : '—'} Agent | ${c.vesselEmailDone ? '✓' : '—'} Vessel`;
   const calendarJobTitle = (c: Case) => `${getVesselName(c.vesselId)} - ${c.subject}${hasIssuedPO(c) ? ` | PO: ${c.poNumber}` : ''} | ${preparationChecklistTitle(c)}`;
   const renderPreparedTicks = (c: Case) => isPrepared(c) ? (
-    <span title={preparationChecklistTitle(c)} className="inline-flex items-center gap-0.5 rounded-full bg-white/80 border border-blue-200 px-1 py-0.5 text-[8px] font-black text-blue-700">
-      <span>✓P</span><span>✓A</span><span>✓V</span>
+    <span title={preparationChecklistTitle(c)} className="inline-flex items-center rounded-full bg-white/80 border border-blue-200 px-1.5 py-0.5 text-[8px] font-black text-blue-700">
+      Prepared
     </span>
   ) : null;
 
@@ -260,7 +260,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
             {isPrepared(c) && (
               <>
                 <span>•</span>
-                <span className="text-blue-700 font-bold">Prepared ✓P ✓A ✓V</span>
+                <span className="text-blue-700 font-bold">Prepared</span>
               </>
             )}
           </div>
@@ -331,7 +331,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> PO issued
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Prepared ✓P ✓A ✓V
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Prepared
                     </span>
                   </div>
                 </div>
@@ -513,7 +513,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                           {isPrepared(c) && (
                             <>
                               <span>•</span>
-                              <span className="text-blue-700 font-bold">Prepared ✓P ✓A ✓V</span>
+                              <span className="text-blue-700 font-bold">Prepared</span>
                             </>
                           )}
                         </div>
@@ -595,7 +595,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                     <div className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2">
                       <span><MapPin className="h-3 w-3 inline mr-1" />{getPortName(c.portId)}</span>
                       {c.poNumber && <span className="text-emerald-700 font-bold">PO: {c.poNumber}</span>}
-                      {isPrepared(c) && <span className="text-blue-700 font-bold">Prepared ✓P ✓A ✓V</span>}
+                      {isPrepared(c) && <span className="text-blue-700 font-bold">Prepared</span>}
                     </div>
                   </div>
 
