@@ -1,0 +1,8 @@
+Fix package:
+- Edit job summary can switch between manual deadline and scheduled port-call ETA/ETB.
+- Port search autocomplete added to Create New Job.
+- Vessel/Port autocomplete added to Add Vessel Port Call.
+- Port-call date fields reset on Add Vessel Call; Today quick buttons added so date picker starts from current period.
+- Calendar +N more now shows a hover preview with hidden jobs.
+- Calendar prepared jobs show three preparation ticks (Prep / Agent / Vessel).
+- Reopening a postponed job asks for a reason and shows a top-right Reopened note with port and reason.

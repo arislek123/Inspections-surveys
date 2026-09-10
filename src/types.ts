@@ -57,6 +57,9 @@ export interface Case {
   prepEmailNote?: string;
   agentEmailNote?: string;
   vesselEmailNote?: string;
+  reopenedAt?: string;
+  reopenedPortName?: string;
+  reopenedReason?: string;
   details: string;
   
   // Next Action Section

@@ -31,24 +31,29 @@ export default function AddCaseModal({
   
   // State for core fields
   const [vesselId, setVesselId] = useState('');
-  const [portId, setPortId] = useState(ports[0]?.id || '');
+  const [portId, setPortId] = useState('');
   const [jobType, setJobType] = useState('');
   const [customJobType, setCustomJobType] = useState('');
   const [isCustomJob, setIsCustomJob] = useState(false);
   const [vesselSearch, setVesselSearch] = useState('');
+  const [portSearch, setPortSearch] = useState('');
   const [jobTypeSearch, setJobTypeSearch] = useState('');
   const [showVesselSuggestions, setShowVesselSuggestions] = useState(false);
+  const [showPortSuggestions, setShowPortSuggestions] = useState(false);
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setVesselId('');
       setVesselSearch('');
+      setPortId('');
+      setPortSearch('');
       const nextJobType = preselectedJobType || '';
       setJobType(nextJobType);
       setJobTypeSearch(nextJobType);
       setIsCustomJob(false);
       setShowVesselSuggestions(false);
+      setShowPortSuggestions(false);
       setShowJobTypeSuggestions(false);
     }
   }, [isOpen, preselectedJobType]);
@@ -81,11 +86,18 @@ export default function AddCaseModal({
   const getVesselName = (id: string) => vessels.find(v => v.id === id)?.name || 'Unknown Vessel';
   const getPortName = (id: string) => ports.find(p => p.id === id)?.name || 'Unknown Port';
   const formatVesselLabel = (vessel: Vessel) => `${vessel.name}${vessel.imo ? ` (IMO ${vessel.imo})` : ''}`;
+  const formatPortLabel = (port: Port) => `${port.name}${port.country ? ` (${port.country})` : ''}`;
   const selectVessel = (vessel: Vessel) => {
     setVesselId(vessel.id);
     setVesselSearch(formatVesselLabel(vessel));
     setShowVesselSuggestions(false);
   };
+  const selectPort = (port: Port) => {
+    setPortId(port.id);
+    setPortSearch(formatPortLabel(port));
+    setShowPortSuggestions(false);
+  };
+
   const selectJobType = (type: string) => {
     setJobType(type);
     setJobTypeSearch(type);
@@ -106,6 +118,16 @@ export default function AddCaseModal({
     });
   }, [vessels, vesselSearch]);
 
+  const filteredPorts = useMemo(() => {
+    const term = portSearch.trim().toLowerCase();
+    const sortedPorts = [...ports].sort((a, b) => a.name.localeCompare(b.name));
+    if (!term) return sortedPorts;
+    return sortedPorts.filter(p => {
+      const searchable = `${formatPortLabel(p)} ${p.name} ${p.country || ''}`.toLowerCase();
+      return searchable.includes(term);
+    });
+  }, [ports, portSearch]);
+
   const filteredJobTypes = useMemo(() => {
     const term = jobTypeSearch.trim().toLowerCase();
     const sortedJobTypes = [...jobTypes].sort((a, b) => a.localeCompare(b));
@@ -120,6 +142,8 @@ export default function AddCaseModal({
     const linkedVessel = vessels.find(v => v.id === call.vesselId);
     if (linkedVessel) setVesselSearch(formatVesselLabel(linkedVessel));
     setPortId(call.portId);
+    const linkedPort = ports.find(p => p.id === call.portId);
+    if (linkedPort) setPortSearch(formatPortLabel(linkedPort));
     setDeadline(call.etb || call.eta || '');
     setEta(call.eta || '');
     setEtb(call.etb || '');
@@ -139,12 +163,14 @@ export default function AddCaseModal({
     // Validations
     const matchedVessel = filteredVessels.length === 1 ? filteredVessels[0] : vessels.find(v => formatVesselLabel(v).toLowerCase() === vesselSearch.trim().toLowerCase() || v.name.toLowerCase() === vesselSearch.trim().toLowerCase());
     const finalVesselId = vesselId || matchedVessel?.id || '';
+    const matchedPort = filteredPorts.length === 1 ? filteredPorts[0] : ports.find(p => formatPortLabel(p).toLowerCase() === portSearch.trim().toLowerCase() || p.name.toLowerCase() === portSearch.trim().toLowerCase());
+    const finalPortId = portId || matchedPort?.id || '';
 
     if (!finalVesselId) {
       setValidationError('Please select a vessel.');
       return;
     }
-    if (!portId) {
+    if (!finalPortId) {
       setValidationError('Please select a port.');
       return;
     }
@@ -181,7 +207,7 @@ export default function AddCaseModal({
 
     onAddCase({
       vesselId: finalVesselId,
-      portId,
+      portId: finalPortId,
       jobType: selectedJobType,
       subject: subject.trim(),
       responsiblePerson: responsiblePerson.trim(),
@@ -212,13 +238,15 @@ export default function AddCaseModal({
 
   const resetForm = () => {
     setVesselId('');
-    setPortId(ports[0]?.id || '');
+    setPortId('');
     setJobType('');
     setCustomJobType('');
     setIsCustomJob(false);
     setVesselSearch('');
+    setPortSearch('');
     setJobTypeSearch('');
     setShowVesselSuggestions(false);
+    setShowPortSuggestions(false);
     setShowJobTypeSuggestions(false);
     setSubject('');
     setResponsiblePerson('Technical Department');
@@ -305,7 +333,7 @@ export default function AddCaseModal({
                   if (event.key === 'Tab' && filteredVessels.length === 1) {
                     event.preventDefault();
                     selectVessel(filteredVessels[0]);
-                    setTimeout(() => document.getElementById('modal-port')?.focus(), 0);
+                    setTimeout(() => document.getElementById('modal-port-search')?.focus(), 0);
                   }
                   if (event.key === 'Enter' && filteredVessels.length > 0) {
                     event.preventDefault();
@@ -343,21 +371,62 @@ export default function AddCaseModal({
               )}
             </div>
 
-            {/* Port Select */}
-            <div>
-              <label htmlFor="modal-port" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Port <span className="text-red-500">*</span></label>
-              <select
-                id="modal-port"
-                value={portId}
-                onChange={(e) => setPortId(e.target.value)}
-                className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+            {/* Port Search Select */}
+            <div className="relative">
+              <label htmlFor="modal-port-search" className="block text-[11px] font-sans font-bold text-slate-700 uppercase tracking-wide mb-1">Port <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                id="modal-port-search"
+                value={portSearch}
+                onFocus={() => setShowPortSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowPortSuggestions(false), 120)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  const currentPort = ports.find(p => p.id === portId);
+                  setPortSearch(nextValue);
+                  setShowPortSuggestions(true);
+                  if (!currentPort || formatPortLabel(currentPort) !== nextValue) setPortId('');
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab' && filteredPorts.length === 1) {
+                    event.preventDefault();
+                    selectPort(filteredPorts[0]);
+                    setTimeout(() => document.getElementById('modal-job-type-search')?.focus(), 0);
+                  }
+                  if (event.key === 'Enter' && filteredPorts.length > 0) {
+                    event.preventDefault();
+                    selectPort(filteredPorts[0]);
+                  }
+                }}
+                placeholder="Search port"
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-sans text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 transition-all"
+                autoComplete="off"
                 required
-              >
-                <option value="">-- Select Port --</option>
-                {ports.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.country})</option>
-                ))}
-              </select>
+              />
+              {showPortSuggestions && filteredPorts.length > 0 && (
+                <div className="absolute z-30 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden max-h-56 overflow-y-auto">
+                  {filteredPorts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        selectPort(p);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-xs font-sans hover:bg-sky-50 transition-colors ${portId === p.id ? 'bg-sky-50 text-sky-700 font-bold' : 'text-slate-700'}`}
+                    >
+                      <span className="block">{p.name}</span>
+                      {p.country && <span className="block text-[10px] text-slate-400 font-mono">{p.country}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showPortSuggestions && portSearch.trim() && filteredPorts.length === 1 && (
+                <p className="text-[10px] text-slate-400 mt-1">Press Tab to select {filteredPorts[0].name}</p>
+              )}
+              {portSearch.trim() && !portId && filteredPorts.length === 0 && (
+                <p className="text-[11px] text-red-500 mt-1">No port found.</p>
+              )}
             </div>
 
             {/* Job Type Selector */}

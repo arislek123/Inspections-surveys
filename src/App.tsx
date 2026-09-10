@@ -488,6 +488,7 @@ export default function App() {
               caseItem={activeCase}
               vessels={vessels}
               ports={ports}
+              portCalls={portCalls}
               onBack={() => setSelectedCaseId(null)}
               onUpdateCase={handleUpdateCase}
               onDeleteCase={handleDeleteCase}

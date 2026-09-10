@@ -43,6 +43,11 @@ export default function PortsView({
   const [showAddCallForm, setShowAddCallForm] = useState(false);
   const [portForm, setPortForm] = useState(emptyPortForm);
   const [callForm, setCallForm] = useState(emptyCallForm);
+  const [callVesselSearch, setCallVesselSearch] = useState('');
+  const [callPortSearch, setCallPortSearch] = useState('');
+  const [showCallVesselSuggestions, setShowCallVesselSuggestions] = useState(false);
+  const [showCallPortSuggestions, setShowCallPortSuggestions] = useState(false);
+  const [dateInputKey, setDateInputKey] = useState(0);
   const [editingPortId, setEditingPortId] = useState<string | null>(null);
   const [editingCallId, setEditingCallId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -50,8 +55,44 @@ export default function PortsView({
   const [callScope, setCallScope] = useState<'operational' | 'history'>('operational');
   const [portListMode, setPortListMode] = useState<'withCalls' | 'all'>('withCalls');
 
+  const getVesselName = (vesselId: string) => vessels.find(v => v.id === vesselId)?.name || 'Unknown Vessel';
+  const getPortName = (portId: string) => ports.find(p => p.id === portId)?.name || 'Unknown Port';
+  const formatVesselLabel = (vessel: Vessel) => `${vessel.name}${vessel.imo ? ` (IMO ${vessel.imo})` : ''}`;
+  const formatPortLabel = (port: Port) => `${port.name}${port.country ? ` (${port.country})` : ''}`;
+  const selectCallVessel = (vessel: Vessel) => {
+    setCallForm(prev => ({ ...prev, vesselId: vessel.id }));
+    setCallVesselSearch(formatVesselLabel(vessel));
+    setShowCallVesselSuggestions(false);
+  };
+  const selectCallPort = (port: Port) => {
+    setCallForm(prev => ({ ...prev, portId: port.id }));
+    setCallPortSearch(formatPortLabel(port));
+    setShowCallPortSuggestions(false);
+  };
+  const toLocalDateInput = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+  const todayDateValue = toLocalDateInput(new Date());
+
   const activeVessels = vessels.filter(v => !v.archived);
   const activePorts = ports.filter(p => !p.archived);
+
+  const filteredCallVessels = useMemo(() => {
+    const term = callVesselSearch.trim().toLowerCase();
+    const sorted = [...activeVessels].sort((a, b) => a.name.localeCompare(b.name));
+    if (!term) return sorted;
+    return sorted.filter(v => `${formatVesselLabel(v)} ${v.name} ${v.imo || ''} ${v.fleet || ''}`.toLowerCase().includes(term));
+  }, [activeVessels, callVesselSearch]);
+
+  const filteredCallPorts = useMemo(() => {
+    const term = callPortSearch.trim().toLowerCase();
+    const sorted = [...activePorts].sort((a, b) => a.name.localeCompare(b.name));
+    if (!term) return sorted;
+    return sorted.filter(p => `${formatPortLabel(p)} ${p.name} ${p.country || ''}`.toLowerCase().includes(term));
+  }, [activePorts, callPortSearch]);
 
   const isPortCallInOperationalWindow = (call: PortCall) => {
     const dateValue = call.etb || call.eta || call.ets;
@@ -77,8 +118,6 @@ export default function PortsView({
     [ports, portCalls, showArchived, portListMode, callScope]
   );
 
-  const getVesselName = (vesselId: string) => vessels.find(v => v.id === vesselId)?.name || 'Unknown Vessel';
-  const getPortName = (portId: string) => ports.find(p => p.id === portId)?.name || 'Unknown Port';
   const isOpenJob = (c: Case) => c.status !== 'Finished' && c.status !== 'Postponed';
   const scrollToForm = (targetId: string) => {
     window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
@@ -91,11 +130,12 @@ export default function PortsView({
   };
 
   const resetCallForm = () => {
-    setCallForm({
-      ...emptyCallForm,
-      vesselId: activeVessels[0]?.id || '',
-      portId: activePorts[0]?.id || '',
-    });
+    setCallForm(emptyCallForm);
+    setCallVesselSearch('');
+    setCallPortSearch('');
+    setShowCallVesselSuggestions(false);
+    setShowCallPortSuggestions(false);
+    setDateInputKey(prev => prev + 1);
     setEditingCallId(null);
     setValidationError('');
   };
@@ -154,18 +194,25 @@ export default function PortsView({
     e.preventDefault();
     setValidationError('');
 
-    if (!callForm.vesselId) {
+    const matchedVessel = callForm.vesselId
+      ? vessels.find(v => v.id === callForm.vesselId)
+      : (filteredCallVessels.length === 1 ? filteredCallVessels[0] : vessels.find(v => formatVesselLabel(v).toLowerCase() === callVesselSearch.trim().toLowerCase() || v.name.toLowerCase() === callVesselSearch.trim().toLowerCase()));
+    const matchedPort = callForm.portId
+      ? ports.find(p => p.id === callForm.portId)
+      : (filteredCallPorts.length === 1 ? filteredCallPorts[0] : ports.find(p => formatPortLabel(p).toLowerCase() === callPortSearch.trim().toLowerCase() || p.name.toLowerCase() === callPortSearch.trim().toLowerCase()));
+
+    if (!matchedVessel) {
       setValidationError('Vessel is required for a port call.');
       return;
     }
-    if (!callForm.portId) {
+    if (!matchedPort) {
       setValidationError('Port is required for a port call.');
       return;
     }
 
     const payload = {
-      vesselId: callForm.vesselId,
-      portId: callForm.portId,
+      vesselId: matchedVessel.id,
+      portId: matchedPort.id,
       eta: callForm.eta || '',
       etb: callForm.etb || '',
       ets: callForm.ets || '',
@@ -201,6 +248,11 @@ export default function PortsView({
       ets: call.ets || '',
       agent: call.agent || '',
     });
+    const linkedVessel = vessels.find(v => v.id === call.vesselId);
+    const linkedPort = ports.find(p => p.id === call.portId);
+    setCallVesselSearch(linkedVessel ? formatVesselLabel(linkedVessel) : '');
+    setCallPortSearch(linkedPort ? formatPortLabel(linkedPort) : '');
+    setDateInputKey(prev => prev + 1);
     setShowAddCallForm(true);
     setShowAddPortForm(false);
     scrollToForm('port-call-edit-form');
@@ -318,38 +370,104 @@ export default function PortsView({
         <form id="port-call-edit-form" onSubmit={handleCallSubmit} className="bg-white rounded-xl border border-slate-100 shadow-sm p-6 mb-6 max-w-6xl animate-fadeIn">
           <h3 className="text-sm font-sans font-bold text-slate-800 uppercase tracking-wider mb-4">{editingCallId ? 'Edit Vessel Port Call' : 'Add Vessel Port Call'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-            <div>
+            <div className="relative">
               <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Vessel *</label>
-              <select value={callForm.vesselId} onChange={(e) => setCallForm(prev => ({ ...prev, vesselId: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" required>
-                <option value="">Select vessel</option>
-                {activeVessels.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-              </select>
+              <input
+                type="text"
+                value={callVesselSearch}
+                onFocus={() => setShowCallVesselSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowCallVesselSuggestions(false), 120)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  const currentVessel = vessels.find(v => v.id === callForm.vesselId);
+                  setCallVesselSearch(nextValue);
+                  setShowCallVesselSuggestions(true);
+                  if (!currentVessel || formatVesselLabel(currentVessel) !== nextValue) setCallForm(prev => ({ ...prev, vesselId: '' }));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab' && filteredCallVessels.length === 1) {
+                    event.preventDefault();
+                    selectCallVessel(filteredCallVessels[0]);
+                  }
+                  if (event.key === 'Enter' && filteredCallVessels.length > 0) {
+                    event.preventDefault();
+                    selectCallVessel(filteredCallVessels[0]);
+                  }
+                }}
+                placeholder="Search vessel"
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                autoComplete="off"
+                required
+              />
+              {showCallVesselSuggestions && filteredCallVessels.length > 0 && (
+                <div className="absolute z-40 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden max-h-56 overflow-y-auto">
+                  {filteredCallVessels.map(v => (
+                    <button key={v.id} type="button" onMouseDown={(event) => { event.preventDefault(); selectCallVessel(v); }} className={`w-full px-3 py-2 text-left text-xs hover:bg-sky-50 ${callForm.vesselId === v.id ? 'bg-sky-50 text-sky-700 font-bold' : 'text-slate-700'}`}>
+                      <span className="block">{v.name}</span>
+                      {v.imo && <span className="block text-[10px] text-slate-400 font-mono">IMO {v.imo}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Port *</label>
-              <select value={callForm.portId} onChange={(e) => setCallForm(prev => ({ ...prev, portId: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" required>
-                <option value="">Select port</option>
-                {activePorts.map(p => <option key={p.id} value={p.id}>{p.name} ({p.country})</option>)}
-              </select>
+              <input
+                type="text"
+                value={callPortSearch}
+                onFocus={() => setShowCallPortSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowCallPortSuggestions(false), 120)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  const currentPort = ports.find(p => p.id === callForm.portId);
+                  setCallPortSearch(nextValue);
+                  setShowCallPortSuggestions(true);
+                  if (!currentPort || formatPortLabel(currentPort) !== nextValue) setCallForm(prev => ({ ...prev, portId: '' }));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Tab' && filteredCallPorts.length === 1) {
+                    event.preventDefault();
+                    selectCallPort(filteredCallPorts[0]);
+                  }
+                  if (event.key === 'Enter' && filteredCallPorts.length > 0) {
+                    event.preventDefault();
+                    selectCallPort(filteredCallPorts[0]);
+                  }
+                }}
+                placeholder="Search port"
+                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                autoComplete="off"
+                required
+              />
+              {showCallPortSuggestions && filteredCallPorts.length > 0 && (
+                <div className="absolute z-40 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden max-h-56 overflow-y-auto">
+                  {filteredCallPorts.map(p => (
+                    <button key={p.id} type="button" onMouseDown={(event) => { event.preventDefault(); selectCallPort(p); }} className={`w-full px-3 py-2 text-left text-xs hover:bg-sky-50 ${callForm.portId === p.id ? 'bg-sky-50 text-sky-700 font-bold' : 'text-slate-700'}`}>
+                      <span className="block">{p.name}</span>
+                      {p.country && <span className="block text-[10px] text-slate-400 font-mono">{p.country}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
-              <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">ETA</label>
-              <input type="date" value={callForm.eta} onChange={(e) => setCallForm(prev => ({ ...prev, eta: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
+              <div className="mb-1 flex items-center justify-between"><label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide">ETA</label><button type="button" onClick={() => setCallForm(prev => ({ ...prev, eta: todayDateValue }))} className="text-[10px] font-bold text-sky-600 hover:text-sky-800">Today</button></div>
+              <input key={`eta-${dateInputKey}`} type="date" value={callForm.eta} onChange={(e) => setCallForm(prev => ({ ...prev, eta: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </div>
             <div>
-              <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">ETB</label>
-              <input type="date" value={callForm.etb} onChange={(e) => setCallForm(prev => ({ ...prev, etb: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
+              <div className="mb-1 flex items-center justify-between"><label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide">ETB</label><button type="button" onClick={() => setCallForm(prev => ({ ...prev, etb: todayDateValue }))} className="text-[10px] font-bold text-sky-600 hover:text-sky-800">Today</button></div>
+              <input key={`etb-${dateInputKey}`} type="date" value={callForm.etb} onChange={(e) => setCallForm(prev => ({ ...prev, etb: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </div>
             <div>
-              <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">ETS</label>
-              <input type="date" value={callForm.ets} onChange={(e) => setCallForm(prev => ({ ...prev, ets: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
+              <div className="mb-1 flex items-center justify-between"><label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide">ETS</label><button type="button" onClick={() => setCallForm(prev => ({ ...prev, ets: todayDateValue }))} className="text-[10px] font-bold text-sky-600 hover:text-sky-800">Today</button></div>
+              <input key={`ets-${dateInputKey}`} type="date" value={callForm.ets} onChange={(e) => setCallForm(prev => ({ ...prev, ets: e.target.value }))} className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </div>
             <div>
               <label className="block text-xs font-sans font-bold text-slate-500 uppercase tracking-wide mb-1">Agent</label>
               <input type="text" value={callForm.agent} onChange={(e) => setCallForm(prev => ({ ...prev, agent: e.target.value }))} placeholder="Agent name" className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-sky-500" />
             </div>
           </div>
-          <p className="text-xs text-slate-500 mb-4">Linked jobs use ETB when available; if ETB is empty, ETA is used. Future ETB changes will update the linked job date.</p>
+          <p className="text-xs text-slate-500 mb-4">Linked jobs use ETB when available; if ETB is empty, ETA is used. New date fields are cleared every time you add a call, so the picker opens on the current month.</p>
           <div className="flex justify-end space-x-2">
             <button type="button" onClick={() => { resetCallForm(); setShowAddCallForm(false); }} className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg font-medium">Cancel</button>
             <button type="submit" className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg cursor-pointer shadow-sm">{editingCallId ? 'Save Port Call' : 'Add Port Call'}</button>

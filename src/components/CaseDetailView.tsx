@@ -27,12 +27,13 @@ import {
   GripVertical,
   Link2
 } from 'lucide-react';
-import { Case, Vessel, Port, Comment, Email, CaseStatus, CasePriority } from '../types';
+import { Case, Vessel, Port, PortCall, Comment, Email, CaseStatus, CasePriority } from '../types';
 
 interface CaseDetailViewProps {
   caseItem: Case;
   vessels: Vessel[];
   ports: Port[];
+  portCalls: PortCall[];
   onBack: () => void;
   onUpdateCase: (updatedCase: Case) => void;
   onDeleteCase: (caseId: string) => void;
@@ -42,6 +43,7 @@ export default function CaseDetailView({
   caseItem, 
   vessels, 
   ports, 
+  portCalls,
   onBack, 
   onUpdateCase, 
   onDeleteCase 
@@ -118,6 +120,8 @@ export default function CaseDetailView({
   const [summaryResponsiblePerson, setSummaryResponsiblePerson] = useState(caseItem.responsiblePerson);
   const [summaryCreatedDate, setSummaryCreatedDate] = useState(caseItem.createdDate);
   const [summaryDeadline, setSummaryDeadline] = useState(caseItem.deadline || '');
+  const [summaryDateSource, setSummaryDateSource] = useState<'manual' | 'portCall'>(caseItem.portCallId ? 'portCall' : 'manual');
+  const [summaryPortCallId, setSummaryPortCallId] = useState(caseItem.portCallId || '');
   const [summaryPoNumber, setSummaryPoNumber] = useState(caseItem.poNumber || '');
   const [summaryAgent, setSummaryAgent] = useState(caseItem.agent || '');
   const [summaryVendor, setSummaryVendor] = useState(caseItem.vendor || '');
@@ -133,6 +137,8 @@ export default function CaseDetailView({
     setSummaryResponsiblePerson(caseItem.responsiblePerson);
     setSummaryCreatedDate(caseItem.createdDate);
     setSummaryDeadline(caseItem.deadline || '');
+    setSummaryDateSource(caseItem.portCallId ? 'portCall' : 'manual');
+    setSummaryPortCallId(caseItem.portCallId || '');
     setSummaryPoNumber(caseItem.poNumber || '');
     setSummaryAgent(caseItem.agent || '');
     setSummaryVendor(caseItem.vendor || '');
@@ -149,6 +155,21 @@ export default function CaseDetailView({
   // Helper resolvers
   const vessel = vessels.find(v => v.id === caseItem.vesselId);
   const port = ports.find(p => p.id === caseItem.portId);
+  const getVesselName = (id: string) => vessels.find(v => v.id === id)?.name || 'Unknown Vessel';
+  const getPortName = (id: string) => ports.find(p => p.id === id)?.name || 'Unknown Port';
+  const availableSummaryPortCalls = portCalls
+    .filter(call => !call.archived && (!summaryVesselId || call.vesselId === summaryVesselId))
+    .sort((a, b) => (a.etb || a.eta || a.ets || '').localeCompare(b.etb || b.eta || b.ets || ''));
+
+  const applySummaryPortCall = (callId: string) => {
+    setSummaryPortCallId(callId);
+    const call = portCalls.find(pc => pc.id === callId);
+    if (!call) return;
+    setSummaryVesselId(call.vesselId);
+    setSummaryPortId(call.portId);
+    setSummaryDeadline(call.etb || call.eta || '');
+    if (call.agent) setSummaryAgent(call.agent);
+  };
 
   // Quick state change trigger
   const handleStatusChange = (newStatus: CaseStatus) => {
@@ -156,8 +177,21 @@ export default function CaseDetailView({
       alert('Target date / deadline is required before a job can be marked as Finished.');
       return;
     }
+
+    let reopenPatch: Partial<Case> = {};
+    if (newStatus === 'Postponed but Reopened' && caseItem.status !== 'Postponed but Reopened') {
+      const reason = window.prompt('Reason for reopening this postponed job?');
+      if (reason === null) return;
+      reopenPatch = {
+        reopenedAt: new Date().toISOString(),
+        reopenedPortName: port?.name || 'Unknown Port',
+        reopenedReason: reason.trim() || 'No reason entered',
+      };
+    }
+
     const updated: Case = {
       ...caseItem,
+      ...reopenPatch,
       status: newStatus,
       lastUpdatedDate: new Date().toISOString()
     };
@@ -374,10 +408,22 @@ export default function CaseDetailView({
       alert('Case Subject cannot be empty.');
       return;
     }
+    if (summaryDateSource === 'portCall') {
+      const selectedCall = portCalls.find(pc => pc.id === summaryPortCallId);
+      if (!selectedCall) {
+        alert('Please select a vessel port call or use manual target date.');
+        return;
+      }
+      if (!selectedCall.etb && !selectedCall.eta) {
+        alert('Selected port call has no ETB or ETA. Add ETB/ETA in Ports or use manual target date.');
+        return;
+      }
+    }
     if (!summaryDeadline) {
       alert('Target date / deadline is required.');
       return;
     }
+    const linkedSummaryCall = summaryDateSource === 'portCall' ? portCalls.find(pc => pc.id === summaryPortCallId) : undefined;
     const updated: Case = {
       ...caseItem,
       subject: summarySubject.trim(),
@@ -387,6 +433,10 @@ export default function CaseDetailView({
       responsiblePerson: summaryResponsiblePerson.trim(),
       createdDate: summaryCreatedDate,
       deadline: summaryDeadline ? summaryDeadline : undefined,
+      portCallId: summaryDateSource === 'portCall' ? summaryPortCallId : undefined,
+      eta: linkedSummaryCall?.eta || caseItem.eta,
+      etb: linkedSummaryCall?.etb || caseItem.etb,
+      ets: linkedSummaryCall?.ets || caseItem.ets,
       poNumber: summaryPoNumber.trim() || undefined,
       agent: summaryAgent.trim() || undefined,
       vendor: summaryVendor.trim() || undefined,
@@ -580,6 +630,14 @@ export default function CaseDetailView({
           </div>
         </div>
  
+        {caseItem.status === 'Postponed but Reopened' && (caseItem.reopenedReason || caseItem.reopenedPortName) && (
+          <div className="max-w-sm rounded-xl border border-indigo-100 bg-indigo-50/80 px-3 py-2 text-right shadow-sm">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Reopened job</p>
+            <p className="text-xs font-bold text-indigo-900 truncate">Port: {caseItem.reopenedPortName || port?.name || 'Unknown Port'}</p>
+            <p className="text-[11px] text-indigo-700 truncate" title={caseItem.reopenedReason || ''}>Reason: {caseItem.reopenedReason || '-'}</p>
+          </div>
+        )}
+
         {/* Delete case utility */}
         {isConfirmingDelete ? (
           <div className="flex items-center space-x-2 bg-red-50 border border-red-200 rounded-lg p-1 px-2.5 animate-fadeIn">
@@ -639,6 +697,8 @@ export default function CaseDetailView({
                     setSummaryResponsiblePerson(caseItem.responsiblePerson);
                     setSummaryCreatedDate(caseItem.createdDate);
                     setSummaryDeadline(caseItem.deadline || '');
+                    setSummaryDateSource(caseItem.portCallId ? 'portCall' : 'manual');
+                    setSummaryPortCallId(caseItem.portCallId || '');
                     setSummaryAgent(caseItem.agent || '');
                     setSummaryVendor(caseItem.vendor || '');
                     setSummaryAuthority(caseItem.authority || '');
@@ -725,14 +785,54 @@ export default function CaseDetailView({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 font-sans uppercase">Deadline *</label>
-                    <input
-                      type="date"
-                      value={summaryDeadline}
-                      onChange={(e) => setSummaryDeadline(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono mt-1 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                    />
+                  <div className="md:col-span-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3 space-y-3">
+                    <label className="block text-xs font-bold text-slate-400 font-sans uppercase">Target Date Source</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setSummaryDateSource('manual'); setSummaryPortCallId(''); }}
+                        className={`border rounded-lg px-3 py-2 text-xs font-bold text-left ${summaryDateSource === 'manual' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        Manual fixed date
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSummaryDateSource('portCall')}
+                        className={`border rounded-lg px-3 py-2 text-xs font-bold text-left ${summaryDateSource === 'portCall' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        From vessel port call ETA / ETB
+                      </button>
+                    </div>
+
+                    {summaryDateSource === 'portCall' && (
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 font-sans uppercase">Scheduled Port Call</label>
+                        <select
+                          value={summaryPortCallId}
+                          onChange={(e) => applySummaryPortCall(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-sm mt-1 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                        >
+                          <option value="">Select vessel call</option>
+                          {availableSummaryPortCalls.map(call => (
+                            <option key={call.id} value={call.id}>
+                              {getVesselName(call.vesselId)} → {getPortName(call.portId)} | Target: {call.etb || call.eta || 'No ETA/ETB'} | ETB: {call.etb || '-'} | ETA: {call.eta || '-'}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[11px] text-slate-500 mt-1">ETB is used first. If ETB is empty, ETA is used. Later ETB updates from Ports will update this job.</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 font-sans uppercase">Deadline *</label>
+                      <input
+                        type="date"
+                        value={summaryDeadline}
+                        onChange={(e) => { setSummaryDeadline(e.target.value); if (summaryDateSource === 'portCall') { setSummaryDateSource('manual'); setSummaryPortCallId(''); } }}
+                        disabled={summaryDateSource === 'portCall'}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-mono mt-1 focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-500"
+                      />
+                    </div>
                   </div>
 
                   <div>

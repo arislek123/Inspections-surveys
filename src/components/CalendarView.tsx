@@ -76,6 +76,13 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
   const getPortName = (id: string) => ports.find(p => p.id === id)?.name || 'Unknown Port';
   const isPrepared = (c: Case) => !!(c.prepEmailDone && c.agentEmailDone && c.vesselEmailDone);
   const hasIssuedPO = (c: Case) => !!c.poNumber?.trim();
+  const preparationChecklistTitle = (c: Case) => `Preparation: ${c.prepEmailDone ? '✓' : '—'} Prep | ${c.agentEmailDone ? '✓' : '—'} Agent | ${c.vesselEmailDone ? '✓' : '—'} Vessel`;
+  const calendarJobTitle = (c: Case) => `${getVesselName(c.vesselId)} - ${c.subject}${hasIssuedPO(c) ? ` | PO: ${c.poNumber}` : ''} | ${preparationChecklistTitle(c)}`;
+  const renderPreparedTicks = (c: Case) => isPrepared(c) ? (
+    <span title={preparationChecklistTitle(c)} className="inline-flex items-center gap-0.5 rounded-full bg-white/80 border border-blue-200 px-1 py-0.5 text-[8px] font-black text-blue-700">
+      <span>✓P</span><span>✓A</span><span>✓V</span>
+    </span>
+  ) : null;
 
   const casesWithDeadlines = useMemo(() => {
     return cases.filter(c => {
@@ -174,7 +181,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
         onSelectCase(c.id);
       }}
       className="w-full text-left rounded-md border border-slate-100 bg-white hover:bg-sky-50 hover:border-sky-200 px-2 py-1.5 transition-colors"
-      title={`${getVesselName(c.vesselId)} - ${c.subject}${hasIssuedPO(c) ? ` | PO: ${c.poNumber}` : ''}${isPrepared(c) ? ' | Prepared' : ''}`}
+      title={calendarJobTitle(c)}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-sans font-bold text-slate-900 truncate">
@@ -186,11 +193,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
               PO
             </span>
           )}
-          {isPrepared(c) && (
-            <span title="Preparation / agent / vessel emails completed" className="text-[8px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 font-extrabold">
-              READY
-            </span>
-          )}
+          {renderPreparedTicks(c)}
           <span className={`text-[9px] px-1.5 py-0.5 rounded border ${
             c.priority === 'Critical'
               ? 'bg-red-50 text-red-700 border-red-100'
@@ -257,7 +260,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
             {isPrepared(c) && (
               <>
                 <span>•</span>
-                <span className="text-blue-700 font-bold">Prepared</span>
+                <span className="text-blue-700 font-bold">Prepared ✓P ✓A ✓V</span>
               </>
             )}
           </div>
@@ -316,7 +319,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
 
       {mode === 'month' ? (
         <div className="space-y-5">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-visible">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-4 border-b border-slate-100 bg-white">
               <div className="flex items-center gap-3">
                 <Grid3X3 className="h-4 w-4 text-sky-600" />
@@ -328,7 +331,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> PO issued
                     </span>
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Prepared
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Prepared ✓P ✓A ✓V
                     </span>
                   </div>
                 </div>
@@ -416,7 +419,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                             e.stopPropagation();
                             onSelectCase(c.id);
                           }}
-                          title={`${getVesselName(c.vesselId)} - ${c.subject}${hasIssuedPO(c) ? ` | PO: ${c.poNumber}` : ''}${isPrepared(c) ? ' | Prepared' : ''}`}
+                          title={calendarJobTitle(c)}
                           className={`rounded-md px-2 py-1 border border-l-4 cursor-pointer ${
                             isPrepared(c)
                               ? 'bg-blue-50 border-blue-100 border-l-blue-500 text-blue-900'
@@ -435,14 +438,39 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                             <div className="text-[10px] font-extrabold truncate">{getVesselName(c.vesselId)}</div>
                             <div className="flex items-center gap-1 shrink-0">
                               {hasIssuedPO(c) && <span className="text-[8px] px-1 rounded-full bg-white/75 border border-emerald-200 text-emerald-700 font-black">PO</span>}
-                              {isPrepared(c) && <span className="text-[8px] px-1 rounded-full bg-white/75 border border-blue-200 text-blue-700 font-black">READY</span>}
+                              {renderPreparedTicks(c)}
                             </div>
                           </div>
                           <div className="text-[9px] opacity-80 truncate">{c.jobType}</div>
                         </div>
                       ))}
                       {jobs.length > 3 && (
-                        <div className="text-[10px] font-bold text-slate-500 px-1">+{jobs.length - 3} more</div>
+                        <div className="relative group/more">
+                          <div
+                            className="text-[10px] font-bold text-slate-500 px-1 rounded hover:bg-slate-100 inline-flex"
+                            title={jobs.slice(3).map(c => `${getVesselName(c.vesselId)} - ${c.jobType}`).join('\n')}
+                          >
+                            +{jobs.length - 3} more
+                          </div>
+                          <div className="pointer-events-none absolute left-0 top-full z-[60] mt-1 hidden w-72 rounded-xl border border-slate-200 bg-white p-2 text-left shadow-2xl group-hover/more:block">
+                            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">More jobs on this day</p>
+                            <div className="space-y-1 max-h-56 overflow-y-auto">
+                              {jobs.slice(3).map(c => (
+                                <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="truncate text-[10px] font-extrabold text-slate-900">{getVesselName(c.vesselId)}</span>
+                                    <span className="shrink-0 text-[9px] font-bold text-slate-400">{getPortName(c.portId)}</span>
+                                  </div>
+                                  <div className="truncate text-[10px] text-slate-600">{c.jobType}</div>
+                                  <div className="mt-1 flex items-center gap-1">
+                                    {hasIssuedPO(c) && <span className="text-[8px] px-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 font-black">PO</span>}
+                                    {renderPreparedTicks(c)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </button>
@@ -485,7 +513,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                           {isPrepared(c) && (
                             <>
                               <span>•</span>
-                              <span className="text-blue-700 font-bold">Prepared</span>
+                              <span className="text-blue-700 font-bold">Prepared ✓P ✓A ✓V</span>
                             </>
                           )}
                         </div>
@@ -567,7 +595,7 @@ export default function CalendarView({ cases, vessels, ports, onSelectCase }: Ca
                     <div className="text-[11px] text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2">
                       <span><MapPin className="h-3 w-3 inline mr-1" />{getPortName(c.portId)}</span>
                       {c.poNumber && <span className="text-emerald-700 font-bold">PO: {c.poNumber}</span>}
-                      {isPrepared(c) && <span className="text-blue-700 font-bold">Prepared</span>}
+                      {isPrepared(c) && <span className="text-blue-700 font-bold">Prepared ✓P ✓A ✓V</span>}
                     </div>
                   </div>
 
